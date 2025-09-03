@@ -178,6 +178,7 @@ def main():
             results['Model'].append(name)
             results['Accuracy'].append(boosting_results[name]['accuracy'])
 
+# Пасхалка
     # Plot results
     print("Generating plots...")
     if vit_losses:

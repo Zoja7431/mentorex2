@@ -73,8 +73,8 @@ def load_cifar10_data(data_dir=RAW_DIR):
         root=os.path.join(cifar10_dir, 'test'),
         transform=interim_transform
     )
-
-    # Сохранение interim данных (сырые тензоры и метки)
+# Aboba
+    # Сохранение interim данных (сырые тензоры и метки) 
     train_images = []
     train_labels = []
     test_images = []
