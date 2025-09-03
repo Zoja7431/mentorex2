@@ -29,5 +29,3 @@ catboost_info/
 
 # Исключения
 !mentorex2/mentorex2/data/sample_cifar10_image.jpg
-!mentorex2/models/bert/model.safetensors
-!mentorex2/models/vit/model.safetensors
