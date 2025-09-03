@@ -12,12 +12,11 @@ import pandas as pd
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from mentorex2.mentorex2.features import load_cifar10_data
+from mentorex2.mentorex2.features import load_cifar10_data, load_imdb_data
 from mentorex2.mentorex2.modeling.train import train_vit, train_cnn, train_bert, train_rnn, train_boosting
 from mentorex2.mentorex2.modeling.predict import predict_cifar10_vit, predict_cifar10_cnn, predict_imdb_bert, predict_imdb_rnn, predict_imdb_boosting
 from mentorex2.mentorex2.plots import plot_training_metrics, plot_cnn_filters, plot_model_comparison
 from mentorex2.mentorex2.config import PROCESSED_DIR, OUTPUT_DIR_VIT, OUTPUT_DIR_CNN, OUTPUT_DIR_BERT, OUTPUT_DIR_RNN, OUTPUT_DIR_BOOSTING, BATCH_SIZE_BERT, BATCH_SIZE_RNN
-
 # Define paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIGURES_DIR = os.path.join(BASE_DIR, 'reports', 'figures')
@@ -86,7 +85,7 @@ def main():
     results = {'Model': [], 'Accuracy': []}
     
     # Train or load ViT
-    vit_model_dir = OUTPUT_DIR_VIT
+    vit_model_dir = os.path.join(MODELS_DIR, 'vit')
     if os.path.exists(os.path.join(vit_model_dir, 'pytorch_model.bin')) or os.path.exists(os.path.join(vit_model_dir, 'model.safetensors')):
         print("ViT model already exists, skipping training...")
         vit_metrics = load_metrics_if_exists(vit_model_dir, 'metrics.pkl')
@@ -102,7 +101,7 @@ def main():
         results['Accuracy'].append(vit_acc[-1])
     
     # Train or load CNN
-    cnn_model_dir = OUTPUT_DIR_CNN
+    cnn_model_dir = os.path.join(MODELS_DIR, 'cnn')
     if os.path.exists(os.path.join(cnn_model_dir, 'cnn_model.pth')):
         print("CNN model already exists, skipping training...")
         cnn_metrics = load_metrics_if_exists(cnn_model_dir, 'metrics.pkl')
@@ -118,7 +117,7 @@ def main():
         results['Accuracy'].append(cnn_acc[-1])
     
     # Train or load BERT
-    bert_model_dir = OUTPUT_DIR_BERT
+    bert_model_dir = os.path.join(MODELS_DIR, 'bert')
     if os.path.exists(os.path.join(bert_model_dir, 'pytorch_model.bin')) or os.path.exists(os.path.join(bert_model_dir, 'model.safetensors')):
         print("BERT model already exists, skipping training...")
         bert_stats = load_metrics_if_exists(bert_model_dir, 'metrics.pkl')
@@ -132,7 +131,7 @@ def main():
         results['Accuracy'].append(bert_stats[-1]['Valid. Accur.'])
     
     # Train or load LSTM
-    rnn_model_dir = OUTPUT_DIR_RNN
+    rnn_model_dir = os.path.join(MODELS_DIR, 'rnn')
     if os.path.exists(os.path.join(rnn_model_dir, 'lstm_model.pth')):
         print("LSTM model already exists, skipping training...")
         lstm_stats = load_metrics_if_exists(rnn_model_dir, 'lstm_metrics.pkl')
@@ -159,7 +158,7 @@ def main():
         results['Accuracy'].append(gru_stats[-1]['Valid. Accur.'])
     
     # Train boosting models
-    boosting_model_dir = OUTPUT_DIR_BOOSTING
+    boosting_model_dir = os.path.join(MODELS_DIR, 'boosting')
     if (os.path.exists(os.path.join(boosting_model_dir, 'xgboost_model.json')) and
         os.path.exists(os.path.join(boosting_model_dir, 'lightgbm_model.pkl')) and
         os.path.exists(os.path.join(boosting_model_dir, 'catboost_model.cbm'))):
@@ -171,8 +170,8 @@ def main():
             boosting_results = train_boosting(X_train, y_train, X_test, y_test, boosting_model_dir)
             with open(os.path.join(boosting_model_dir, 'boosting_metrics.pkl'), 'wb') as f:
                 pickle.dump(boosting_results, f)
-        except Exception as e:
-            print(f"Training boosting models failed: {e}")
+        except KeyboardInterrupt:
+            print("Training interrupted. Saving partial boosting results if available...")
             boosting_results = load_metrics_if_exists(boosting_model_dir, 'boosting_metrics.pkl') or {}
     for name in ['XGBoost', 'LightGBM', 'CatBoost']:
         if boosting_results and name in boosting_results:
