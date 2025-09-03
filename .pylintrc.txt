@@ -1,0 +1,4 @@
+[MASTER]
+disable=missing-docstring,too-many-locals,too-many-arguments
+max-line-length=120
+ignore=.venv,mentorex2/mentorex2/data,mentorex2/mentorex2/models,catboost_info

@@ -7,7 +7,7 @@ __pycache__/
 # Данные и модели
 mentorex2/mentorex2/data/raw/*
 mentorex2/mentorex2/data/processed/*
-mentorex2/mentorex2/models/*
+mentorex2/models/*
 mentorex2/mentorex2/reports/figures/*
 *.pkl
 *.pth
