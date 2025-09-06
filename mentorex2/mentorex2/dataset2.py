@@ -4,17 +4,17 @@
 """
 dataset2.py - Script to preprocess CIFAR-10 dataset for the mentorex2 project with memory-efficient batch processing.
 """
-
+# djdj
+from mentorex2.mentorex2.config import RAW_DIR, PROCESSED_DIR
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+import torch
+import numpy as np
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 print("sys.path:", sys.path)
 
-import numpy as np
-import torch
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
-from mentorex2.mentorex2.config import RAW_DIR, PROCESSED_DIR
 
 def preprocess_cifar10():
     """Preprocess CIFAR-10 dataset for ViT and CNN with batch processing."""
@@ -85,6 +85,7 @@ def preprocess_cifar10():
             np.save(f_labels, batch_labels.numpy(), allow_pickle=False)
 
     print("CIFAR-10 preprocessing completed!")
+
 
 if __name__ == "__main__":
     preprocess_cifar10()

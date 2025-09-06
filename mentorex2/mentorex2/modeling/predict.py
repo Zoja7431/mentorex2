@@ -31,6 +31,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # CIFAR-10 class labels
 CIFAR10_CLASSES = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
+
 def predict_cifar10_vit(image_path, model_path=OUTPUT_DIR_VIT):
     """Predict CIFAR-10 class using ViT model."""
     model = ViTForImageClassification.from_pretrained(model_path).to(device)
@@ -50,6 +51,7 @@ def predict_cifar10_vit(image_path, model_path=OUTPUT_DIR_VIT):
     except FileNotFoundError:
         print(f"Image not found at {image_path}")
         return None
+
 
 def predict_cifar10_cnn(image_path, model_path=OUTPUT_DIR_CNN):
     """Predict CIFAR-10 class using CNN model."""
@@ -71,6 +73,7 @@ def predict_cifar10_cnn(image_path, model_path=OUTPUT_DIR_CNN):
     except FileNotFoundError:
         print(f"Image not found at {image_path}")
         return None
+
 
 def predict_imdb_bert(text, model_path=OUTPUT_DIR_BERT):
     """Predict IMDB sentiment using BERT model."""
@@ -94,6 +97,7 @@ def predict_imdb_bert(text, model_path=OUTPUT_DIR_BERT):
     logits = outputs.logits
     prediction = np.argmax(logits.detach().cpu().numpy(), axis=1).flatten()
     return "Positive" if prediction[0] == 1 else "Negative"
+
 
 def predict_imdb_rnn(text, model_path=OUTPUT_DIR_RNN, rnn_type='LSTM'):
     """Predict IMDB sentiment using RNN (LSTM or GRU) model."""
@@ -119,6 +123,7 @@ def predict_imdb_rnn(text, model_path=OUTPUT_DIR_RNN, rnn_type='LSTM'):
     prediction = torch.argmax(outputs, dim=1).cpu().numpy()[0]
     return "Positive" if prediction == 1 else "Negative"
 
+
 def predict_imdb_boosting(text, model_name='XGBoost', model_path=OUTPUT_DIR_BOOSTING):
     """Predict IMDB sentiment using boosting model (XGBoost, LightGBM, CatBoost)."""
     with open(os.path.join(model_path, 'tfidf_vectorizer.pkl'), 'rb') as f:
@@ -142,48 +147,50 @@ def predict_imdb_boosting(text, model_name='XGBoost', model_path=OUTPUT_DIR_BOOS
     pred = model.predict(tfidf_vector)[0]
     return "Positive" if pred == 1 else "Negative"
 
+
 def main():
     """Test all models with example inputs."""
     nltk.download('punkt')
     nltk.download('stopwords')
-    
+
     # Example image path for CIFAR-10
     image_path = r"C:\Users\Delta-Game\mentorex2\mentorex2\data\sample_cifar10_image.jpg"
-    
+
     # Example text for IMDB
     example_text = "This movie was fantastic! Great acting and a compelling story."
-    
+
     print("Testing ViT on CIFAR-10:")
     vit_prediction = predict_cifar10_vit(image_path)
     print(f"ViT Prediction: {vit_prediction}")
-    
+
     print("\nTesting CNN on CIFAR-10:")
     cnn_prediction = predict_cifar10_cnn(image_path)
     print(f"CNN Prediction: {cnn_prediction}")
-    
+
     print("\nTesting BERT on IMDB:")
     bert_prediction = predict_imdb_bert(example_text)
     print(f"BERT Prediction: {bert_prediction}")
-    
+
     print("\nTesting LSTM on IMDB:")
     lstm_prediction = predict_imdb_rnn(example_text, rnn_type='LSTM')
     print(f"LSTM Prediction: {lstm_prediction}")
-    
+
     print("\nTesting GRU on IMDB:")
     gru_prediction = predict_imdb_rnn(example_text, rnn_type='GRU')
     print(f"GRU Prediction: {gru_prediction}")
-    
+
     print("\nTesting XGBoost on IMDB:")
     xgb_prediction = predict_imdb_boosting(example_text, 'XGBoost')
     print(f"XGBoost Prediction: {xgb_prediction}")
-    
+
     print("\nTesting LightGBM on IMDB:")
     lgb_prediction = predict_imdb_boosting(example_text, 'LightGBM')
     print(f"LightGBM Prediction: {lgb_prediction}")
-    
+
     print("\nTesting CatBoost on IMDB:")
     cb_prediction = predict_imdb_boosting(example_text, 'CatBoost')
     print(f"CatBoost Prediction: {cb_prediction}")
+
 
 if __name__ == "__main__":
     main()

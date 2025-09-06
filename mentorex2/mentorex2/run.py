@@ -4,6 +4,11 @@
 run.py - Script to run training, prediction, and visualization for the mentorex2 project.
 """
 
+from mentorex2.mentorex2.config import PROCESSED_DIR, OUTPUT_DIR_VIT, OUTPUT_DIR_CNN, OUTPUT_DIR_BERT, OUTPUT_DIR_RNN, OUTPUT_DIR_BOOSTING, BATCH_SIZE_BERT, BATCH_SIZE_RNN
+from mentorex2.mentorex2.plots import plot_training_metrics, plot_cnn_filters, plot_model_comparison
+from mentorex2.mentorex2.modeling.predict import predict_cifar10_vit, predict_cifar10_cnn, predict_imdb_bert, predict_imdb_rnn, predict_imdb_boosting
+from mentorex2.mentorex2.modeling.train import train_vit, train_cnn, train_bert, train_rnn, train_boosting
+from mentorex2.mentorex2.features import load_cifar10_data, load_imdb_data
 import os
 import sys
 import pickle
@@ -12,11 +17,6 @@ import pandas as pd
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from mentorex2.mentorex2.features import load_cifar10_data, load_imdb_data
-from mentorex2.mentorex2.modeling.train import train_vit, train_cnn, train_bert, train_rnn, train_boosting
-from mentorex2.mentorex2.modeling.predict import predict_cifar10_vit, predict_cifar10_cnn, predict_imdb_bert, predict_imdb_rnn, predict_imdb_boosting
-from mentorex2.mentorex2.plots import plot_training_metrics, plot_cnn_filters, plot_model_comparison
-from mentorex2.mentorex2.config import PROCESSED_DIR, OUTPUT_DIR_VIT, OUTPUT_DIR_CNN, OUTPUT_DIR_BERT, OUTPUT_DIR_RNN, OUTPUT_DIR_BOOSTING, BATCH_SIZE_BERT, BATCH_SIZE_RNN
 # Define paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIGURES_DIR = os.path.join(BASE_DIR, 'reports', 'figures')
@@ -26,6 +26,7 @@ MODELS_DIR = os.path.join(BASE_DIR, 'models')
 os.makedirs(FIGURES_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 
+
 def load_metrics_if_exists(model_dir, filename):
     """Load metrics from file if it exists."""
     metrics_path = os.path.join(model_dir, filename)
@@ -33,6 +34,7 @@ def load_metrics_if_exists(model_dir, filename):
         with open(metrics_path, 'rb') as f:
             return pickle.load(f)
     return None
+
 
 def load_imdb_data():
     """Load preprocessed IMDB data."""
@@ -42,29 +44,29 @@ def load_imdb_data():
     test_input_ids = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_input_ids.pt'))
     test_attention_masks = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_attention_masks.pt'))
     test_labels_bert = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_bert.pt'))
-    
+
     train_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_padded_rnn.pt'))
     train_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_lengths_rnn.pt'))
     train_labels_rnn = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_rnn.pt'))
     test_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_padded_rnn.pt'))
     test_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_lengths_rnn.pt'))
     test_labels_rnn = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_rnn.pt'))
-    
+
     with open(os.path.join(PROCESSED_DIR, 'imdb_train_tfidf.pkl'), 'rb') as f:
         X_train = pickle.load(f)
     with open(os.path.join(PROCESSED_DIR, 'imdb_test_tfidf.pkl'), 'rb') as f:
         X_test = pickle.load(f)
     y_train = np.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_boosting.npy'))
     y_test = np.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_boosting.npy'))
-    
+
     train_dataset_bert = TensorDataset(train_input_ids, train_attention_masks, train_labels_bert)
     test_dataset_bert = TensorDataset(test_input_ids, test_attention_masks, test_labels_bert)
     train_loader_bert = DataLoader(train_dataset_bert, batch_size=BATCH_SIZE_BERT, shuffle=True)
     test_loader_bert = DataLoader(test_dataset_bert, batch_size=BATCH_SIZE_BERT, shuffle=False)
-    
+
     train_dataset_rnn = TensorDataset(train_padded, train_lengths, train_labels_rnn)
     test_dataset_rnn = TensorDataset(test_padded, test_lengths, test_labels_rnn)
-    
+
     print(f"train_padded shape: {train_padded.shape}")
     print(f"train_lengths shape: {train_lengths.shape}")
     print(f"train_labels_rnn shape: {train_labels_rnn.shape}")
@@ -72,8 +74,9 @@ def load_imdb_data():
     print(f"Min index in train_padded: {train_padded.min().item()}")
     print(f"Max length in train_lengths: {train_lengths.max().item()}")
     print(f"Min length in train_lengths: {train_lengths.min().item()}")
-    
+
     return (train_loader_bert, test_loader_bert), (train_dataset_rnn, test_dataset_rnn), (X_train, X_test, y_train, y_test)
+
 
 def main():
     # Load data
@@ -83,7 +86,7 @@ def main():
 
     # Initialize results for comparison
     results = {'Model': [], 'Accuracy': []}
-    
+
     # Train or load ViT
     vit_model_dir = os.path.join(MODELS_DIR, 'vit')
     if os.path.exists(os.path.join(vit_model_dir, 'pytorch_model.bin')) or os.path.exists(os.path.join(vit_model_dir, 'model.safetensors')):
@@ -99,7 +102,7 @@ def main():
     if vit_acc:
         results['Model'].append('ViT')
         results['Accuracy'].append(vit_acc[-1])
-    
+
     # Train or load CNN
     cnn_model_dir = os.path.join(MODELS_DIR, 'cnn')
     if os.path.exists(os.path.join(cnn_model_dir, 'cnn_model.pth')):
@@ -115,7 +118,7 @@ def main():
     if cnn_acc:
         results['Model'].append('CNN')
         results['Accuracy'].append(cnn_acc[-1])
-    
+
     # Train or load BERT
     bert_model_dir = os.path.join(MODELS_DIR, 'bert')
     if os.path.exists(os.path.join(bert_model_dir, 'pytorch_model.bin')) or os.path.exists(os.path.join(bert_model_dir, 'model.safetensors')):
@@ -129,7 +132,7 @@ def main():
     if bert_stats:
         results['Model'].append('BERT')
         results['Accuracy'].append(bert_stats[-1]['Valid. Accur.'])
-    
+
     # Train or load LSTM
     rnn_model_dir = os.path.join(MODELS_DIR, 'rnn')
     if os.path.exists(os.path.join(rnn_model_dir, 'lstm_model.pth')):
@@ -143,7 +146,7 @@ def main():
     if lstm_stats:
         results['Model'].append('LSTM')
         results['Accuracy'].append(lstm_stats[-1]['Valid. Accur.'])
-    
+
     # Train or load GRU
     if os.path.exists(os.path.join(rnn_model_dir, 'gru_model.pth')):
         print("GRU model already exists, skipping training...")
@@ -156,12 +159,12 @@ def main():
     if gru_stats:
         results['Model'].append('GRU')
         results['Accuracy'].append(gru_stats[-1]['Valid. Accur.'])
-    
+
     # Train boosting models
     boosting_model_dir = os.path.join(MODELS_DIR, 'boosting')
-    if (os.path.exists(os.path.join(boosting_model_dir, 'xgboost_model.json')) and
-        os.path.exists(os.path.join(boosting_model_dir, 'lightgbm_model.pkl')) and
-        os.path.exists(os.path.join(boosting_model_dir, 'catboost_model.cbm'))):
+    if (os.path.exists(os.path.join(boosting_model_dir, 'xgboost_model.json'))
+        and os.path.exists(os.path.join(boosting_model_dir, 'lightgbm_model.pkl'))
+            and os.path.exists(os.path.join(boosting_model_dir, 'catboost_model.cbm'))):
         print("Boosting models already exist, skipping training...")
         boosting_results = load_metrics_if_exists(boosting_model_dir, 'boosting_metrics.pkl')
     else:
@@ -197,7 +200,7 @@ def main():
         for name in ['XGBoost', 'LightGBM', 'CatBoost']:
             if name in boosting_results:
                 plot_training_metrics(boosting_results[name]['val_scores'], name, os.path.join(FIGURES_DIR, f'{name.lower()}_results.png'))
-    
+
     # Compare models
     if results['Model']:
         plot_model_comparison(results, os.path.join(FIGURES_DIR, 'model_comparison.png'))
@@ -224,6 +227,7 @@ def main():
         print(f"LightGBM Prediction: {predict_imdb_boosting(text, 'LightGBM')}")
     if boosting_results and 'CatBoost' in boosting_results:
         print(f"CatBoost Prediction: {predict_imdb_boosting(text, 'CatBoost')}")
+
 
 if __name__ == "__main__":
     main()

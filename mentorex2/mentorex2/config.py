@@ -59,4 +59,4 @@ CATBOOST_PARAM_GRID = {
     'depth': [3],
     'iterations': [50]
 }
-#aasksk sdasd
+# aasksk sdasd

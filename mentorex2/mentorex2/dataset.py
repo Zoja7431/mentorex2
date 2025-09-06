@@ -37,13 +37,14 @@ PROCESSED_DIR = os.path.join(DATA_DIR, 'processed')
 for directory in [INTERIM_DIR, PROCESSED_DIR]:
     os.makedirs(directory, exist_ok=True)
 
+
 def load_cifar10_data(data_dir=RAW_DIR):
     """
     Загружает CIFAR-10 датасет из локальной папки.
     Сохраняет interim и processed данные.
     """
     cifar10_dir = os.path.join(data_dir, 'cifar10')
-    
+
     if not os.path.exists(os.path.join(cifar10_dir, 'train')) or not os.path.exists(os.path.join(cifar10_dir, 'test')):
         raise FileNotFoundError(f"CIFAR-10 data not found in {cifar10_dir}. Ensure train and test folders exist.")
 
@@ -51,14 +52,14 @@ def load_cifar10_data(data_dir=RAW_DIR):
     interim_transform = transforms.Compose([
         transforms.ToTensor()
     ])
-    
+
     # Трансформации для processed (нормализация и ресайз для ViT)
     processed_transform_vit = transforms.Compose([
         transforms.Resize(224, interpolation=transforms.InterpolationMode.BICUBIC),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])
     ])
-    
+
     processed_transform_cnn = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])
@@ -74,19 +75,19 @@ def load_cifar10_data(data_dir=RAW_DIR):
         transform=interim_transform
     )
 # Aboba
-    # Сохранение interim данных (сырые тензоры и метки) 
+    # Сохранение interim данных (сырые тензоры и метки)
     train_images = []
     train_labels = []
     test_images = []
     test_labels = []
-    
+
     for img, label in train_dataset:
         train_images.append(img.numpy())
         train_labels.append(label)
     for img, label in test_dataset:
         test_images.append(img.numpy())
         test_labels.append(label)
-    
+
     np.save(os.path.join(INTERIM_DIR, 'cifar10_train_images.npy'), np.array(train_images))
     np.save(os.path.join(INTERIM_DIR, 'cifar10_train_labels.npy'), np.array(train_labels))
     np.save(os.path.join(INTERIM_DIR, 'cifar10_test_images.npy'), np.array(test_images))
@@ -122,7 +123,7 @@ def load_cifar10_data(data_dir=RAW_DIR):
     for img, label in test_dataset_vit:
         test_images_vit.append(img.numpy())
         test_labels_vit.append(label)
-    
+
     np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'), np.array(train_images_vit))
     np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'), np.array(train_labels_vit))
     np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'), np.array(test_images_vit))
@@ -139,12 +140,13 @@ def load_cifar10_data(data_dir=RAW_DIR):
     for img, label in test_dataset_cnn:
         test_images_cnn.append(img.numpy())
         test_labels_cnn.append(label)
-    
+
     np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'), np.array(train_images_cnn))
     np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'), np.array(train_labels_cnn))
     np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'), np.array(test_images_cnn))
     np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'), np.array(test_labels_cnn))
     print(f"CIFAR-10 processed data saved in {PROCESSED_DIR}")
+
 
 def load_imdb_data(data_dir=RAW_DIR):
     """
@@ -155,15 +157,16 @@ def load_imdb_data(data_dir=RAW_DIR):
         raise FileNotFoundError(f"IMDB Dataset not found at {imdb_path}")
 
     df = pd.read_csv(imdb_path)
-    
+
     # Предобработка текста
     stop_words = set(stopwords.words('english'))
+
     def clean_text(text):
         text = re.sub(r'<br />', ' ', text.lower())
         text = re.sub(r'[^a-z ]', '', text)
         tokens = word_tokenize(text)
         return [w for w in tokens if w not in stop_words]
-    
+
     df['cleaned_review'] = df['review'].apply(clean_text)
     df['sentiment'] = df['sentiment'].map({'positive': 1, 'negative': 0})
 
@@ -274,4 +277,3 @@ def load_imdb_data(data_dir=RAW_DIR):
     np.save(os.path.join(PROCESSED_DIR, 'imdb_train_labels_boosting.npy'), np.array(train_labels))
     np.save(os.path.join(PROCESSED_DIR, 'imdb_test_labels_boosting.npy'), np.array(test_labels))
     print(f"IMDB processed data (Boosting) saved in {PROCESSED_DIR}")
-

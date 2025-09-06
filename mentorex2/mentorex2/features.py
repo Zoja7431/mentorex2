@@ -11,6 +11,7 @@ import numpy as np
 import pickle
 from mentorex2.mentorex2.config import PROCESSED_DIR, BATCH_SIZE_CIFAR, BATCH_SIZE_BERT, BATCH_SIZE_RNN, VOCAB_SIZE, MAX_LENGTH_RNN
 
+
 def load_cifar10_data():
     """Load preprocessed CIFAR-10 data for ViT and CNN."""
     print("Loading CIFAR-10 data from", PROCESSED_DIR)
@@ -51,6 +52,7 @@ def load_cifar10_data():
     test_loader_cnn = DataLoader(test_dataset_cnn, batch_size=BATCH_SIZE_CIFAR, shuffle=False)
 
     return (train_loader_vit, test_loader_vit), (train_loader_cnn, test_loader_cnn)
+
 
 def load_imdb_data():
     """Load preprocessed IMDB data for BERT, RNN, and boosting."""
