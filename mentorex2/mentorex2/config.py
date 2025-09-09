@@ -7,11 +7,11 @@ config.py - Store useful variables and configuration for the mentorex2 project.
 import os
 
 # Base paths
-DATA_DIR = r"C:\Users\Delta-Game\mentorex2\mentorex2\data"
+DATA_DIR = r"C:\home\mentorex\mentorex2\mentorex2\data"
 RAW_DIR = os.path.join(DATA_DIR, 'raw')
 INTERIM_DIR = os.path.join(DATA_DIR, 'interim')
 PROCESSED_DIR = os.path.join(DATA_DIR, 'processed')  # Points to C:\Users\Delta-Game\mentorex2\mentorex2\data\processed
-MODEL_DIR = r"C:\Users\Delta-Game\mentorex2\mentorex2\models"  # Points to C:\Users\Delta-Game\mentorex2\mentorex2\models
+MODEL_DIR = r"C:\home\mentorex\mentorex2\mentorex2\models"  # Points to C:\Users\Delta-Game\mentorex2\mentorex2\models
 OUTPUT_DIR_VIT = os.path.join(MODEL_DIR, 'vit')
 OUTPUT_DIR_CNN = os.path.join(MODEL_DIR, 'cnn')
 OUTPUT_DIR_BERT = os.path.join(MODEL_DIR, 'bert')
