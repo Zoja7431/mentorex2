@@ -206,7 +206,12 @@ dependencies = [
     "mypy>=1.17.1",
     "pre-commit>=4.3.0",
     "autopep8>=2.3.2",
-    "awscli>=1.42.26",
+    "awscli<1.42.26",
+    "pathspec>=0.12.1",
+    "voluptuous>=0.15.2",
+    "dvc>=3.63.0",
+    "dvc-s3>=3.2.2",
+    "boto3>=1.40.18",
 ]
 
 [tool.uv.sources]
