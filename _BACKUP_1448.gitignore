@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Данные и модели
+mentorex2/mentorex2/data/raw/*
+mentorex2/mentorex2/data/processed/*
+mentorex2/models/*
+*.pkl
+*.pth
+*.safetensors
+
+# Временные файлы
+*.log
+*.tmp
+*.bak
+
+# IDE и локальные конфигурации
+.idea/
+.vscode/
+*.code-workspace
+.python-version
+
+# CatBoost временные файлы
+catboost_info/
+
+# Исключения
+!mentorex2/mentorex2/data/sample_cifar10_image.jpg
