@@ -6,5 +6,3 @@
     access_key_id = admin
     secret_access_key = password
     use_ssl = false
-['remote.myremote']
-    default = true
