@@ -2,29 +2,27 @@
 __pycache__/
 *.pyc
 .venv/
-*.egg-info/
+.env
 
-# Данные и модели
-mentorex2/mentorex2/data/raw/*
-mentorex2/mentorex2/data/processed/*
+# DVC
+.dvc/cache/
+mentorex2/data/processed/*
 mentorex2/models/*
-*.pkl
-*.pth
-*.safetensors
+!mentorex2/data/raw/*.dvc
+!mentorex2/data/processed/*.dvc
+!mentorex2/models/*.dvc
 
-# Временные файлы
-*.log
-*.tmp
-*.bak
+# MLflow
+mlruns/
 
-# IDE и локальные конфигурации
+# IDE
 .idea/
-.vscode/
-*.code-workspace
-.python-version
+*.iml
 
-# CatBoost временные файлы
-catboost_info/
+# uv
+uv.lock
 
-# Исключения
-!mentorex2/mentorex2/data/sample_cifar10_image.jpg
+# Other
+*.log
+.DS_Store
+project_files.txt
