@@ -10,8 +10,9 @@ import xgboost as xgb
 import lightgbm as lgb
 import catboost as cb
 import pickle
+import json
+import mlflow
 from tqdm import tqdm
-import mlflow  # Добавлено для логирования
 from mentorex2.mentorex2.config import (
     NUM_CLASSES_CIFAR, EPOCHS_VIT, EPOCHS_CNN, LEARNING_RATE_VIT, LEARNING_RATE_CNN, WEIGHT_DECAY, LABEL_SMOOTHING,
     EPOCHS_BERT, LEARNING_RATE_BERT, EPOCHS_RNN, LEARNING_RATE_RNN, VOCAB_SIZE, EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS,
@@ -85,42 +86,51 @@ def train_vit(train_loader, test_loader, output_dir):
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE_VIT, weight_decay=WEIGHT_DECAY)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
 
-    train_losses = []
-    test_accuracies = []
-
-    for epoch in range(EPOCHS_VIT):
-        model.train()
-        running_loss = 0.0
-        for images, labels in tqdm(train_loader, desc=f"ViT Epoch {epoch+1}"):
-            images, labels = images.to(device), labels.to(device)
-            optimizer.zero_grad()
-            outputs = model(images).logits
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item()
-        scheduler.step()
-        train_losses.append(running_loss / len(train_loader))
-
-        model.eval()
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for images, labels in test_loader:
+    training_stats = []
+    with mlflow.start_run(run_name="vit_training"):
+        for epoch in range(EPOCHS_VIT):
+            model.train()
+            running_loss = 0.0
+            for images, labels in tqdm(train_loader, desc=f"ViT Epoch {epoch+1}"):
                 images, labels = images.to(device), labels.to(device)
+                optimizer.zero_grad()
                 outputs = model(images).logits
-                _, predicted = torch.max(outputs, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-        test_accuracies.append(100 * correct / total)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                running_loss += loss.item()
+            scheduler.step()
+            avg_train_loss = running_loss / len(train_loader)
 
-        # MLflow logging
-        mlflow.log_metric("vit_train_loss", running_loss / len(train_loader))
-        mlflow.log_metric("vit_test_accuracy", 100 * correct / total)
+            model.eval()
+            correct = 0
+            total = 0
+            with torch.no_grad():
+                for images, labels in test_loader:
+                    images, labels = images.to(device), labels.to(device)
+                    outputs = model(images).logits
+                    _, predicted = torch.max(outputs, 1)
+                    total += labels.size(0)
+                    correct += (predicted == labels).sum().item()
+            avg_test_accuracy = 100 * correct / total
 
-    os.makedirs(output_dir, exist_ok=True)
-    model.save_pretrained(output_dir)
-    return model, train_losses, test_accuracies
+            training_stats.append({
+                'epoch': epoch + 1,
+                'Training Loss': avg_train_loss,
+                'Valid. Accur.': avg_test_accuracy
+            })
+
+            mlflow.log_metric("train_loss", avg_train_loss, step=epoch)
+            mlflow.log_metric("val_accuracy", avg_test_accuracy, step=epoch)
+
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, 'metrics.json'), 'w') as f:
+            json.dump(training_stats, f)
+        mlflow.log_artifact(os.path.join(output_dir, 'metrics.json'))
+        mlflow.pytorch.log_model(model, "vit_model")
+
+        model.save_pretrained(output_dir)
+    return model, training_stats
 
 def train_cnn(train_loader, test_loader, output_dir):
     model = SimpleCNN(num_classes=NUM_CLASSES_CIFAR).to(device)
@@ -128,89 +138,106 @@ def train_cnn(train_loader, test_loader, output_dir):
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE_CNN, weight_decay=WEIGHT_DECAY)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
-    train_losses = []
-    test_accuracies = []
-
-    for epoch in range(EPOCHS_CNN):
-        model.train()
-        running_loss = 0.0
-        for images, labels in tqdm(train_loader, desc=f"CNN Epoch {epoch+1}"):
-            images, labels = images.to(device), labels.to(device)
-            optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item()
-        scheduler.step()
-        train_losses.append(running_loss / len(train_loader))
-
-        model.eval()
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for images, labels in test_loader:
+    training_stats = []
+    with mlflow.start_run(run_name="cnn_training"):
+        for epoch in range(EPOCHS_CNN):
+            model.train()
+            running_loss = 0.0
+            for images, labels in tqdm(train_loader, desc=f"CNN Epoch {epoch+1}"):
                 images, labels = images.to(device), labels.to(device)
+                optimizer.zero_grad()
                 outputs = model(images)
-                _, predicted = torch.max(outputs, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-        test_accuracies.append(100 * correct / total)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                running_loss += loss.item()
+            scheduler.step()
+            avg_train_loss = running_loss / len(train_loader)
 
-        # MLflow logging
-        mlflow.log_metric("cnn_train_loss", running_loss / len(train_loader))
-        mlflow.log_metric("cnn_test_accuracy", 100 * correct / total)
+            model.eval()
+            correct = 0
+            total = 0
+            with torch.no_grad():
+                for images, labels in test_loader:
+                    images, labels = images.to(device), labels.to(device)
+                    outputs = model(images)
+                    _, predicted = torch.max(outputs, 1)
+                    total += labels.size(0)
+                    correct += (predicted == labels).sum().item()
+            avg_test_accuracy = 100 * correct / total
 
-    os.makedirs(output_dir, exist_ok=True)
-    torch.save(model.state_dict(), os.path.join(output_dir, 'cnn_model.pth'))
-    return model, train_losses, test_accuracies
+            training_stats.append({
+                'epoch': epoch + 1,
+                'Training Loss': avg_train_loss,
+                'Valid. Accur.': avg_test_accuracy
+            })
+
+            mlflow.log_metric("train_loss", avg_train_loss, step=epoch)
+            mlflow.log_metric("val_accuracy", avg_test_accuracy, step=epoch)
+
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, 'metrics.json'), 'w') as f:
+            json.dump(training_stats, f)
+        mlflow.log_artifact(os.path.join(output_dir, 'metrics.json'))
+        mlflow.pytorch.log_model(model, "cnn_model")
+
+        torch.save(model.state_dict(), os.path.join(output_dir, 'cnn_model.pth'))
+    return model, training_stats
 
 def train_bert(train_loader, test_loader, output_dir):
     model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=2).to(device)
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE_BERT, weight_decay=0.01)
 
     training_stats = []
-    for epoch in range(EPOCHS_BERT):
-        model.train()
-        total_train_loss = 0
-        for batch in tqdm(train_loader, desc=f"BERT Epoch {epoch+1}"):
-            b_input_ids, b_input_mask, b_labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
-            model.zero_grad()
-            outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
-            loss = outputs.loss
-            total_train_loss += loss.item()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            optimizer.step()
-
-        avg_train_loss = total_train_loss / len(train_loader)
-
-        model.eval()
-        total_eval_accuracy = 0
-        total_eval_loss = 0
-        for batch in test_loader:
-            b_input_ids, b_input_mask, b_labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
-            with torch.no_grad():
+    with mlflow.start_run(run_name="bert_training"):
+        for epoch in range(EPOCHS_BERT):
+            model.train()
+            total_train_loss = 0
+            for batch in tqdm(train_loader, desc=f"BERT Epoch {epoch+1}"):
+                b_input_ids, b_input_mask, b_labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                model.zero_grad()
                 outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
-            loss = outputs.loss
-            logits = outputs.logits
-            total_eval_loss += loss.item()
-            total_eval_accuracy += np.sum(np.argmax(logits.detach().cpu().numpy(), axis=1) == b_labels.cpu().numpy()) / b_labels.size(0)
+                loss = outputs.loss
+                total_train_loss += loss.item()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.step()
 
-        training_stats.append({
-            'epoch': epoch + 1,
-            'Training Loss': avg_train_loss,
-            'Valid. Loss': total_eval_loss / len(test_loader),
-            'Valid. Accur.': total_eval_accuracy / len(test_loader)
-        })
+            avg_train_loss = total_train_loss / len(train_loader)
 
-        # MLflow logging
-        mlflow.log_metric("bert_train_loss", avg_train_loss)
-        mlflow.log_metric("bert_val_loss", total_eval_loss / len(test_loader))
-        mlflow.log_metric("bert_val_accuracy", total_eval_accuracy / len(test_loader))
+            model.eval()
+            total_eval_accuracy = 0
+            total_eval_loss = 0
+            for batch in test_loader:
+                b_input_ids, b_input_mask, b_labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                with torch.no_grad():
+                    outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
+                loss = outputs.loss
+                logits = outputs.logits
+                total_eval_loss += loss.item()
+                total_eval_accuracy += np.sum(np.argmax(logits.detach().cpu().numpy(), axis=1) == b_labels.cpu().numpy()) / b_labels.size(0)
 
-    os.makedirs(output_dir, exist_ok=True)
-    model.save_pretrained(output_dir)
+            avg_val_loss = total_eval_loss / len(test_loader)
+            avg_val_accuracy = total_eval_accuracy / len(test_loader)
+
+            training_stats.append({
+                'epoch': epoch + 1,
+                'Training Loss': avg_train_loss,
+                'Valid. Loss': avg_val_loss,
+                'Valid. Accur.': avg_val_accuracy
+            })
+
+            mlflow.log_metric("train_loss", avg_train_loss, step=epoch)
+            mlflow.log_metric("val_loss", avg_val_loss, step=epoch)
+            mlflow.log_metric("val_accuracy", avg_val_accuracy, step=epoch)
+
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, 'metrics.json'), 'w') as f:
+            json.dump(training_stats, f)
+        mlflow.log_artifact(os.path.join(output_dir, 'metrics.json'))
+        mlflow.pytorch.log_model(model, "bert_model")
+
+        model.save_pretrained(output_dir)
     return model, training_stats
 
 def train_rnn(train_data, test_data, output_dir, rnn_type='LSTM'):
@@ -222,50 +249,58 @@ def train_rnn(train_data, test_data, output_dir, rnn_type='LSTM'):
     criterion = nn.CrossEntropyLoss()
 
     training_stats = []
-    for epoch in range(EPOCHS_RNN):
-        model.train()
-        total_train_loss = 0
-        for batch in tqdm(train_loader, desc=f"{rnn_type} Epoch {epoch+1}"):
-            inputs, lengths, labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
-            sorted_idx = torch.argsort(lengths, descending=True)
-            inputs, lengths, labels = inputs[sorted_idx], lengths[sorted_idx], labels[sorted_idx]
-            optimizer.zero_grad()
-            outputs = model(inputs, lengths)
-            loss = criterion(outputs, labels)
-            total_train_loss += loss.item()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            optimizer.step()
-
-        avg_train_loss = total_train_loss / len(train_loader)
-
-        model.eval()
-        total_eval_loss = 0
-        total_eval_acc = 0
-        for batch in test_loader:
-            inputs, lengths, labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
-            sorted_idx = torch.argsort(lengths, descending=True)
-            inputs, lengths, labels = inputs[sorted_idx], lengths[sorted_idx], labels[sorted_idx]
-            with torch.no_grad():
+    with mlflow.start_run(run_name=f"{rnn_type.lower()}_training"):
+        for epoch in range(EPOCHS_RNN):
+            model.train()
+            total_train_loss = 0
+            for batch in tqdm(train_loader, desc=f"{rnn_type} Epoch {epoch+1}"):
+                inputs, lengths, labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                sorted_idx = torch.argsort(lengths, descending=True)
+                inputs, lengths, labels = inputs[sorted_idx], lengths[sorted_idx], labels[sorted_idx]
+                optimizer.zero_grad()
                 outputs = model(inputs, lengths)
-            loss = criterion(outputs, labels)
-            total_eval_loss += loss.item()
-            total_eval_acc += np.mean(torch.argmax(outputs, dim=1).cpu().numpy() == labels.cpu().numpy())
+                loss = criterion(outputs, labels)
+                total_train_loss += loss.item()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.step()
 
-        training_stats.append({
-            'epoch': epoch + 1,
-            'Training Loss': avg_train_loss,
-            'Valid. Loss': total_eval_loss / len(test_loader),
-            'Valid. Accur.': total_eval_acc / len(test_loader)
-        })
+            avg_train_loss = total_train_loss / len(train_loader)
 
-        # MLflow logging
-        mlflow.log_metric(f"{rnn_type}_train_loss", avg_train_loss)
-        mlflow.log_metric(f"{rnn_type}_val_loss", total_eval_loss / len(test_loader))
-        mlflow.log_metric(f"{rnn_type}_val_accuracy", total_eval_acc / len(test_loader))
+            model.eval()
+            total_eval_loss = 0
+            total_eval_acc = 0
+            for batch in test_loader:
+                inputs, lengths, labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                sorted_idx = torch.argsort(lengths, descending=True)
+                inputs, lengths, labels = inputs[sorted_idx], lengths[sorted_idx], labels[sorted_idx]
+                with torch.no_grad():
+                    outputs = model(inputs, lengths)
+                loss = criterion(outputs, labels)
+                total_eval_loss += loss.item()
+                total_eval_acc += np.mean(torch.argmax(outputs, dim=1).cpu().numpy() == labels.cpu().numpy())
 
-    os.makedirs(output_dir, exist_ok=True)
-    torch.save(model.state_dict(), os.path.join(output_dir, f'{rnn_type.lower()}_model.pth'))
+            avg_val_loss = total_eval_loss / len(test_loader)
+            avg_val_accuracy = total_eval_acc / len(test_loader)
+
+            training_stats.append({
+                'epoch': epoch + 1,
+                'Training Loss': avg_train_loss,
+                'Valid. Loss': avg_val_loss,
+                'Valid. Accur.': avg_val_accuracy
+            })
+
+            mlflow.log_metric("train_loss", avg_train_loss, step=epoch)
+            mlflow.log_metric("val_loss", avg_val_loss, step=epoch)
+            mlflow.log_metric("val_accuracy", avg_val_accuracy, step=epoch)
+
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, f'{rnn_type.lower()}_metrics.pkl'), 'wb') as f:
+            pickle.dump(training_stats, f)
+        mlflow.log_artifact(os.path.join(output_dir, f'{rnn_type.lower()}_metrics.pkl'))
+        mlflow.pytorch.log_model(model, f"{rnn_type.lower()}_model")
+
+        torch.save(model.state_dict(), os.path.join(output_dir, f'{rnn_type.lower()}_model.pth'))
     return model, training_stats
 
 def train_boosting(X_train, y_train, X_test, y_test, output_dir):
@@ -276,28 +311,37 @@ def train_boosting(X_train, y_train, X_test, y_test, output_dir):
     }
 
     results = {}
-    for name, (model, param_grid) in models.items():
-        grid_search = GridSearchCV(model, param_grid, cv=3, scoring='accuracy', n_jobs=-1, verbose=1)
-        grid_search.fit(X_train, y_train)
-        best_model = grid_search.best_estimator_
-        y_pred = best_model.predict(X_test)
-        results[name] = {
-            'model': best_model,
-            'accuracy': accuracy_score(y_test, y_pred),
-            'val_scores': grid_search.cv_results_['mean_test_score'],
-            'epochs': np.arange(1, len(grid_search.cv_results_['mean_test_score']) + 1)
-        }
-        os.makedirs(output_dir, exist_ok=True)
-        if name == 'XGBoost':
-            best_model.save_model(os.path.join(output_dir, 'xgboost_model.json'))
-        elif name == 'LightGBM':
-            with open(os.path.join(output_dir, 'lightgbm_model.pkl'), 'wb') as f:
-                pickle.dump(best_model, f)
-        else:
-            best_model.save_model(os.path.join(output_dir, 'catboost_model.cbm'))
+    with mlflow.start_run(run_name="boosting_training"):
+        for name, (model, param_grid) in models.items():
+            grid_search = GridSearchCV(model, param_grid, cv=3, scoring='accuracy', n_jobs=-1, verbose=1)
+            grid_search.fit(X_train, y_train)
+            best_model = grid_search.best_estimator_
+            y_pred = best_model.predict(X_test)
+            results[name] = {
+                'model': best_model,
+                'accuracy': accuracy_score(y_test, y_pred),
+                'val_scores': grid_search.cv_results_['mean_test_score'],
+                'epochs': np.arange(1, len(grid_search.cv_results_['mean_test_score']) + 1)
+            }
 
-        # MLflow logging
-        mlflow.log_metric(f"{name}_test_accuracy", accuracy_score(y_test, y_pred))
-        mlflow.log_param(f"{name}_best_params", str(grid_search.best_params_))
+            mlflow.log_metric(f"{name}_accuracy", results[name]['accuracy'])
+            for i, score in enumerate(results[name]['val_scores']):
+                mlflow.log_metric(f"{name}_val_score", score, step=i)
+
+            os.makedirs(output_dir, exist_ok=True)
+            if name == 'XGBoost':
+                best_model.save_model(os.path.join(output_dir, 'xgboost_model.json'))
+                mlflow.log_artifact(os.path.join(output_dir, 'xgboost_model.json'))
+            elif name == 'LightGBM':
+                with open(os.path.join(output_dir, 'lightgbm_model.pkl'), 'wb') as f:
+                    pickle.dump(best_model, f)
+                mlflow.log_artifact(os.path.join(output_dir, 'lightgbm_model.pkl'))
+            else:
+                best_model.save_model(os.path.join(output_dir, 'catboost_model.cbm'))
+                mlflow.log_artifact(os.path.join(output_dir, 'catboost_model.cbm'))
+
+        with open(os.path.join(output_dir, 'boosting_metrics.pkl'), 'wb') as f:
+            pickle.dump(results, f)
+        mlflow.log_artifact(os.path.join(output_dir, 'boosting_metrics.pkl'))
 
     return results
