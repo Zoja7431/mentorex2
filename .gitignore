@@ -11,6 +11,8 @@ mentorex2/models/*
 !mentorex2/data/raw/*.dvc
 !mentorex2/data/processed/*.dvc
 !mentorex2/models/*.dvc
+mentorex2/reports/figures/*
+!mentorex2/reports/figures/*.dvc
 
 # MLflow
 mlruns/
