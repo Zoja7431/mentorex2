@@ -122,7 +122,7 @@ def preprocess_imdb():
         pickle.dump(train_tfidf, f)
     with open(os.path.join(PROCESSED_DIR, 'imdb_test_tfidf.pkl'), 'wb') as f:
         pickle.dump(test_tfidf, f)
-    with open(os.path.join(OUTPUT_DIR_BOOSTING, 'tfidf_vectorizer.pkl'), 'wb') as f:
+    with open(os.path.join(PROCESSED_DIR, 'tfidf_vectorizer.pkl'), 'wb') as f:
         pickle.dump(vectorizer, f)
     np.save(os.path.join(PROCESSED_DIR, 'imdb_train_labels_boosting.npy'), np.array(train_labels))
     np.save(os.path.join(PROCESSED_DIR, 'imdb_test_labels_boosting.npy'), np.array(test_labels))
