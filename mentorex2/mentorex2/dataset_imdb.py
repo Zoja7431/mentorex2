@@ -4,6 +4,8 @@
 dataset_imdb.py - Preprocess IMDB dataset from CSV for BERT, RNN, and boosting models.
 """
 
+import nltk
+nltk.download('punkt_tab', quiet=True)
 import os
 import sys
 import pandas as pd
