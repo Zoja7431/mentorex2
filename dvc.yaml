@@ -28,7 +28,7 @@ stages:
   process_cifar10_vit:
     cmd: python mentorex2/mentorex2/dataset.py
     deps:
-      - mentorex2/mentorex2/data/raw/cifar-10-batches-py
+      - mentorex2/mentorex2/data/raw/cifar-10-python.tar.gz
       - mentorex2/mentorex2/dataset.py
       - mentorex2/mentorex2/config.py
     outs:
@@ -40,7 +40,7 @@ stages:
   process_cifar10_cnn:
     cmd: python mentorex2/mentorex2/dataset2.py
     deps:
-      - mentorex2/mentorex2/data/raw/cifar-10-batches-py
+      - mentorex2/mentorex2/data/raw/cifar-10-python.tar.gz
       - mentorex2/mentorex2/dataset2.py
       - mentorex2/mentorex2/config.py
     outs:
