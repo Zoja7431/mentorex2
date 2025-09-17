@@ -1,5 +1,6 @@
 [core]
     remote = myremote
+    autostage = true
 ['remote "myremote"']
     url = s3://mentorex2
     endpointurl = http://localhost:9000
