@@ -1,0 +1,111 @@
+schema: '2.0'
+stages:
+  process_imdb:
+    cmd: python mentorex2/mentorex2/dataset_imdb.py
+    deps:
+    - path: mentorex2/data/raw/IMDB Dataset.csv
+      hash: md5
+      md5: 308443a50e5c993e7b8a1cdb95750026
+      size: 66212309
+      isexec: true
+    - path: mentorex2/mentorex2/config.py
+      hash: md5
+      md5: 961fb60f44d808aedcb82ca3df227699
+      size: 1562
+      isexec: true
+    - path: mentorex2/mentorex2/dataset_imdb.py
+      hash: md5
+      md5: 49733afdbe165f7e6d17499dedd17b21
+      size: 6219
+      isexec: true
+    outs:
+    - path: mentorex2/data/processed/imdb_test_attention_masks.pt
+      hash: md5
+      md5: 9b2917176f88acec99733fb51d3de379
+      size: 102401334
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_input_ids.pt
+      hash: md5
+      md5: 642d68c33b4ceb692a1a1ebb2b1b94b2
+      size: 102401240
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_labels_bert.pt
+      hash: md5
+      md5: f5ea24cd16003bab4eecc3102086ce8f
+      size: 201250
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_labels_boosting.npy
+      hash: md5
+      md5: a5b0bfc2e33634a1206eebaae18eaa69
+      size: 200128
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_labels_rnn.pt
+      hash: md5
+      md5: 0b7954ac7ed8e21b0899cb143e5600e3
+      size: 201245
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_lengths_rnn.pt
+      hash: md5
+      md5: 8f2934e44e908c7d299eed0e46cfcda4
+      size: 201250
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_padded_rnn.pt
+      hash: md5
+      md5: 6ac5f3371bae54de689119bbed115afe
+      size: 51201245
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_tfidf.pkl
+      hash: md5
+      md5: ad3a9348035be1720d7faadd0a9c3c63
+      size: 1000074578
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_attention_masks.pt
+      hash: md5
+      md5: ca68bccf6bbcec9ca10d8ea7764db2fe
+      size: 102401339
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_input_ids.pt
+      hash: md5
+      md5: 5f4c7a5bc703cc34b3da295607481270
+      size: 102401245
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_labels_bert.pt
+      hash: md5
+      md5: 15584641630414e2653a000fb0efeed6
+      size: 201319
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_labels_boosting.npy
+      hash: md5
+      md5: 5b04505cdd817772155aad252bdfa00b
+      size: 200128
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_labels_rnn.pt
+      hash: md5
+      md5: a332677a9417e7d67652f6c4929044b9
+      size: 201250
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_lengths_rnn.pt
+      hash: md5
+      md5: 145b7dcee47070a1d5379e41d8ca4099
+      size: 201319
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_padded_rnn.pt
+      hash: md5
+      md5: dbfdb0cc6f3d1595834a57c6af0b2ee1
+      size: 51201250
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_tfidf.pkl
+      hash: md5
+      md5: 05d50eb991ee7bd2316bbeed56ead1b0
+      size: 1000074578
+      isexec: true
+    - path: mentorex2/data/processed/imdb_vectorizer.pkl
+      hash: md5
+      md5: 284e471624ab46262035370e64a65b31
+      size: 182957
+      isexec: true
+    - path: mentorex2/data/processed/imdb_vocab.pkl
+      hash: md5
+      md5: a19c5f74598f653421a4a1cf3a137ba1
+      size: 259032
+      isexec: true

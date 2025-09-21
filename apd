@@ -1,0 +1,705 @@
+[33m473269c[m Final commit with project files
+[1mdiff --git a/mentorex2/mentorex2/dataset.py b/mentorex2/mentorex2/dataset.py[m
+[1mindex 9df488f..96dd5aa 100644[m
+[1m--- a/mentorex2/mentorex2/dataset.py[m
+[1m+++ b/mentorex2/mentorex2/dataset.py[m
+[36m@@ -1,3 +1,4 @@[m
+[32m+[m[32m<<<<<<< HEAD[m
+ #!/usr/bin/env python[m
+ # coding: utf-8[m
+ """[m
+[36m@@ -277,3 +278,284 @@[m [mdef load_imdb_data(data_dir=RAW_DIR):[m
+     np.save(os.path.join(PROCESSED_DIR, 'imdb_train_labels_boosting.npy'), np.array(train_labels))[m
+     np.save(os.path.join(PROCESSED_DIR, 'imdb_test_labels_boosting.npy'), np.array(test_labels))[m
+     print(f"IMDB processed data (Boosting) saved in {PROCESSED_DIR}")[m
+[32m+[m[32m=======[m
+[32m+[m[32m#!/usr/bin/env python[m[41m[m
+[32m+[m[32m# coding: utf-8[m[41m[m
+[32m+[m[32m"""[m[41m[m
+[32m+[m[32mdataset.py - Scripts to download or generate data for the mentorex2 project.[m[41m[m
+[32m+[m[32mSaves interim and processed datasets for CIFAR-10 and IMDB.[m[41m[m
+[32m+[m[32m"""[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mimport os[m[41m[m
+[32m+[m[32mimport pickle[m[41m[m
+[32m+[m[32mimport numpy as np[m[41m[m
+[32m+[m[32mimport pandas as pd[m[41m[m
+[32m+[m[32mimport torch[m[41m[m
+[32m+[m[32mfrom torchvision import datasets, transforms[m[41m[m
+[32m+[m[32mfrom torch.utils.data import DataLoader[m[41m[m
+[32m+[m[32mfrom transformers import BertTokenizer[m[41m[m
+[32m+[m[32mfrom nltk.tokenize import word_tokenize[m[41m[m
+[32m+[m[32mfrom nltk.corpus import stopwords[m[41m[m
+[32m+[m[32mimport re[m[41m[m
+[32m+[m[32mfrom collections import Counter[m[41m[m
+[32m+[m[32mfrom sklearn.feature_extraction.text import TfidfVectorizer[m[41m[m
+[32m+[m[32mfrom sklearn.model_selection import train_test_split[m[41m[m
+[32m+[m[32mimport nltk[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m# Убедимся, что нужные NLTK-данные загружены[m[41m[m
+[32m+[m[32mnltk.download('punkt_tab', quiet=True)[m[41m[m
+[32m+[m[32mnltk.download('stopwords', quiet=True)[m[41m[m
+[32m+[m[32mnltk.download('wordnet', quiet=True)[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m# Определение путей с учетом тройной вложенности и правильного расположения папки data[m[41m[m
+[32m+[m[32mBASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))[m[41m[m
+[32m+[m[32mDATA_DIR = os.path.join(BASE_DIR, 'mentorex2', 'data')  # Папка data в mentorex2/mentorex2/data[m[41m[m
+[32m+[m[32mRAW_DIR = os.path.join(DATA_DIR, 'raw')[m[41m[m
+[32m+[m[32mINTERIM_DIR = os.path.join(DATA_DIR, 'interim')[m[41m[m
+[32m+[m[32mPROCESSED_DIR = os.path.join(DATA_DIR, 'processed')[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m# Создание директорий[m[41m[m
+[32m+[m[32mfor directory in [INTERIM_DIR, PROCESSED_DIR]:[m[41m[m
+[32m+[m[32m    os.makedirs(directory, exist_ok=True)[m[41m[m
+[32m+[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mdef load_cifar10_data(data_dir=RAW_DIR):[m[41m[m
+[32m+[m[32m    """[m[41m[m
+[32m+[m[32m    Загружает CIFAR-10 датасет из локальной папки.[m[41m[m
+[32m+[m[32m    Сохраняет interim и processed данные.[m[41m[m
+[32m+[m[32m    """[m[41m[m
+[32m+[m[32m    cifar10_dir = os.path.join(data_dir, 'cifar10')[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    if not os.path.exists(os.path.join(cifar10_dir, 'train')) or not os.path.exists(os.path.join(cifar10_dir, 'test')):[m[41m[m
+[32m+[m[32m        raise FileNotFoundError(f"CIFAR-10 data not found in {cifar10_dir}. Ensure train and test folders exist.")[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Трансформации для interim (без аугментации, только ToTensor)[m[41m[m
+[32m+[m[32m    interim_transform = transforms.Compose([[m[41m[m
+[32m+[m[32m        transforms.ToTensor()[m[41m[m
+[32m+[m[32m    ])[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Трансформации для processed (нормализация и ресайз для ViT)[m[41m[m
+[32m+[m[32m    processed_transform_vit = transforms.Compose([[m[41m[m
+[32m+[m[32m        transforms.Resize(224, interpolation=transforms.InterpolationMode.BICUBIC),[m[41m[m
+[32m+[m[32m        transforms.ToTensor(),[m[41m[m
+[32m+[m[32m        transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])[m[41m[m
+[32m+[m[32m    ])[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    processed_transform_cnn = transforms.Compose([[m[41m[m
+[32m+[m[32m        transforms.ToTensor(),[m[41m[m
+[32m+[m[32m        transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])[m[41m[m
+[32m+[m[32m    ])[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Загрузка датасета[m[41m[m
+[32m+[m[32m    train_dataset = datasets.ImageFolder([m[41m[m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'train'),[m[41m[m
+[32m+[m[32m        transform=interim_transform[m[41m[m
+[32m+[m[32m    )[m[41m[m
+[32m+[m[32m    test_dataset = datasets.ImageFolder([m[41m[m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'test'),[m[41m[m
+[32m+[m[32m        transform=interim_transform[m[41m[m
+[32m+[m[32m    )[m[41m[m
+[32m+[m[32m# Aboba[m[41m[m
+[32m+[m[32m    # Сохранение interim данных (сырые тензоры и метки)[m[41m[m
+[32m+[m[32m    train_images = [][m[41m[m
+[32m+[m[32m    train_labels = [][m[41m[m
+[32m+[m[32m    test_images = [][m[41m[m
+[32m+[m[32m    test_labels = [][m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    for img, label in train_dataset:[m[41m[m
+[32m+[m[32m        train_images.append(img.numpy())[m[41m[m
+[32m+[m[32m        train_labels.append(label)[m[41m[m
+[32m+[m[32m    for img, label in test_dataset:[m[41m[m
+[32m+[m[32m        test_images.append(img.numpy())[m[41m[m
+[32m+[m[32m        test_labels.append(label)[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    np.save(os.path.join(INTERIM_DIR, 'cifar10_train_images.npy'), np.array(train_images))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(INTERIM_DIR, 'cifar10_train_labels.npy'), np.array(train_labels))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(INTERIM_DIR, 'cifar10_test_images.npy'), np.array(test_images))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(INTERIM_DIR, 'cifar10_test_labels.npy'), np.array(test_labels))[m[41m[m
+[32m+[m[32m    print(f"CIFAR-10 interim data saved in {INTERIM_DIR}")[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Сохранение processed данных (нормализованные для ViT и CNN)[m[41m[m
+[32m+[m[32m    train_dataset_vit = datasets.ImageFolder([m[41m[m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'train'),[m[41m[m
+[32m+[m[32m        transform=processed_transform_vit[m[41m[m
+[32m+[m[32m    )[m[41m[m
+[32m+[m[32m    test_dataset_vit = datasets.ImageFolder([m[41m[m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'test'),[m[41m[m
+[32m+[m[32m        transform=processed_transform_vit[m[41m[m
+[32m+[m[32m    )[m[41m[m
+[32m+[m[32m    train_dataset_cnn = datasets.ImageFolder([m[41m[m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'train'),[m[41m[m
+[32m+[m[32m        transform=processed_transform_cnn[m[41m[m
+[32m+[m[32m    )[m[41m[m
+[32m+[m[32m    test_dataset_cnn = datasets.ImageFolder([m[41m[m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'test'),[m[41m[m
+[32m+[m[32m        transform=processed_transform_cnn[m[41m[m
+[32m+[m[32m    )[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Сохранение processed для ViT[m[41m[m
+[32m+[m[32m    train_images_vit = [][m[41m[m
+[32m+[m[32m    train_labels_vit = [][m[41m[m
+[32m+[m[32m    test_images_vit = [][m[41m[m
+[32m+[m[32m    test_labels_vit = [][m[41m[m
+[32m+[m[32m    for img, label in train_dataset_vit:[m[41m[m
+[32m+[m[32m        train_images_vit.append(img.numpy())[m[41m[m
+[32m+[m[32m        train_labels_vit.append(label)[m[41m[m
+[32m+[m[32m    for img, label in test_dataset_vit:[m[41m[m
+[32m+[m[32m        test_images_vit.append(img.numpy())[m[41m[m
+[32m+[m[32m        test_labels_vit.append(label)[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'), np.array(train_images_vit))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'), np.array(train_labels_vit))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'), np.array(test_images_vit))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'), np.array(test_labels_vit))[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Сохранение processed для CNN[m[41m[m
+[32m+[m[32m    train_images_cnn = [][m[41m[m
+[32m+[m[32m    train_labels_cnn = [][m[41m[m
+[32m+[m[32m    test_images_cnn = [][m[41m[m
+[32m+[m[32m    test_labels_cnn = [][m[41m[m
+[32m+[m[32m    for img, label in train_dataset_cnn:[m[41m[m
+[32m+[m[32m        train_images_cnn.append(img.numpy())[m[41m[m
+[32m+[m[32m        train_labels_cnn.append(label)[m[41m[m
+[32m+[m[32m    for img, label in test_dataset_cnn:[m[41m[m
+[32m+[m[32m        test_images_cnn.append(img.numpy())[m[41m[m
+[32m+[m[32m        test_labels_cnn.append(label)[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'), np.array(train_images_cnn))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'), np.array(train_labels_cnn))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'), np.array(test_images_cnn))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'), np.array(test_labels_cnn))[m[41m[m
+[32m+[m[32m    print(f"CIFAR-10 processed data saved in {PROCESSED_DIR}")[m[41m[m
+[32m+[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mdef load_imdb_data(data_dir=RAW_DIR):[m[41m[m
+[32m+[m[32m    """[m[41m[m
+[32m+[m[32m    Загружает IMDB датасет из CSV, выполняет предобработку и сохраняет interim и processed данные.[m[41m[m
+[32m+[m[32m    """[m[41m[m
+[32m+[m[32m    imdb_path = os.path.join(data_dir, 'IMDB Dataset.csv')[m[41m[m
+[32m+[m[32m    if not os.path.exists(imdb_path):[m[41m[m
+[32m+[m[32m        raise FileNotFoundError(f"IMDB Dataset not found at {imdb_path}")[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    df = pd.read_csv(imdb_path)[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Предобработка текста[m[41m[m
+[32m+[m[32m    stop_words = set(stopwords.words('english'))[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    def clean_text(text):[m[41m[m
+[32m+[m[32m        text = re.sub(r'<br />', ' ', text.lower())[m[41m[m
+[32m+[m[32m        text = re.sub(r'[^a-z ]', '', text)[m[41m[m
+[32m+[m[32m        tokens = word_tokenize(text)[m[41m[m
+[32m+[m[32m        return [w for w in tokens if w not in stop_words][m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    df['cleaned_review'] = df['review'].apply(clean_text)[m[41m[m
+[32m+[m[32m    df['sentiment'] = df['sentiment'].map({'positive': 1, 'negative': 0})[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Разделение на тренировочную и тестовую выборки[m[41m[m
+[32m+[m[32m    train_texts, test_texts, train_labels, test_labels = train_test_split([m[41m[m
+[32m+[m[32m        df['cleaned_review'].tolist(),[m[41m[m
+[32m+[m[32m        df['sentiment'].tolist(),[m[41m[m
+[32m+[m[32m        test_size=0.2,[m[41m[m
+[32m+[m[32m        random_state=42,[m[41m[m
+[32m+[m[32m        stratify=df['sentiment'][m[41m[m
+[32m+[m[32m    )[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Сохранение interim данных (очищенные тексты и метки)[m[41m[m
+[32m+[m[32m    interim_data = {[m[41m[m
+[32m+[m[32m        'train_texts': train_texts,[m[41m[m
+[32m+[m[32m        'train_labels': train_labels,[m[41m[m
+[32m+[m[32m        'test_texts': test_texts,[m[41m[m
+[32m+[m[32m        'test_labels': test_labels[m[41m[m
+[32m+[m[32m    }[m[41m[m
+[32m+[m[32m    with open(os.path.join(INTERIM_DIR, 'imdb_interim.pkl'), 'wb') as f:[m[41m[m
+[32m+[m[32m        pickle.dump(interim_data, f)[m[41m[m
+[32m+[m[32m    print(f"IMDB interim data saved in {INTERIM_DIR}")[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Подготовка processed данных[m[41m[m
+[32m+[m[32m    # 1. Для BERT (токенизация)[m[41m[m
+[32m+[m[32m    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')[m[41m[m
+[32m+[m[32m    max_length_bert = 512[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    def tokenize_data(texts, labels, max_length):[m[41m[m
+[32m+[m[32m        input_ids = [][m[41m[m
+[32m+[m[32m        attention_masks = [][m[41m[m
+[32m+[m[32m        for text in texts:[m[41m[m
+[32m+[m[32m            encoded_dict = tokenizer.encode_plus([m[41m[m
+[32m+[m[32m                text,[m[41m[m
+[32m+[m[32m                add_special_tokens=True,[m[41m[m
+[32m+[m[32m                max_length=max_length,[m[41m[m
+[32m+[m[32m                padding='max_length',[m[41m[m
+[32m+[m[32m                truncation=True,[m[41m[m
+[32m+[m[32m                return_attention_mask=True,[m[41m[m
+[32m+[m[32m                return_tensors='pt'[m[41m[m
+[32m+[m[32m            )[m[41m[m
+[32m+[m[32m            input_ids.append(encoded_dict['input_ids'])[m[41m[m
+[32m+[m[32m            attention_masks.append(encoded_dict['attention_mask'])[m[41m[m
+[32m+[m[32m        input_ids = torch.cat(input_ids, dim=0)[m[41m[m
+[32m+[m[32m        attention_masks = torch.cat(attention_masks, dim=0)[m[41m[m
+[32m+[m[32m        labels = torch.tensor(labels)[m[41m[m
+[32m+[m[32m        return input_ids, attention_masks, labels[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    train_input_ids, train_attention_masks, train_labels_bert = tokenize_data(train_texts, train_labels, max_length_bert)[m[41m[m
+[32m+[m[32m    test_input_ids, test_attention_masks, test_labels_bert = tokenize_data(test_texts, test_labels, max_length_bert)[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Сохранение processed данных для BERT[m[41m[m
+[32m+[m[32m    torch.save(train_input_ids, os.path.join(PROCESSED_DIR, 'imdb_train_input_ids.pt'))[m[41m[m
+[32m+[m[32m    torch.save(train_attention_masks, os.path.join(PROCESSED_DIR, 'imdb_train_attention_masks.pt'))[m[41m[m
+[32m+[m[32m    torch.save(train_labels_bert, os.path.join(PROCESSED_DIR, 'imdb_train_labels_bert.pt'))[m[41m[m
+[32m+[m[32m    torch.save(test_input_ids, os.path.join(PROCESSED_DIR, 'imdb_test_input_ids.pt'))[m[41m[m
+[32m+[m[32m    torch.save(test_attention_masks, os.path.join(PROCESSED_DIR, 'imdb_test_attention_masks.pt'))[m[41m[m
+[32m+[m[32m    torch.save(test_labels_bert, os.path.join(PROCESSED_DIR, 'imdb_test_labels_bert.pt'))[m[41m[m
+[32m+[m[32m    print(f"IMDB processed data (BERT) saved in {PROCESSED_DIR}")[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # 2. Для RNN (LSTM/GRU)[m[41m[m
+[32m+[m[32m    vocab_size = 20000[m[41m[m
+[32m+[m[32m    max_length_rnn = 256[m[41m[m
+[32m+[m[32m    all_train_words = [word for text in train_texts for word in text][m[41m[m
+[32m+[m[32m    word_counts = Counter(all_train_words)[m[41m[m
+[32m+[m[32m    vocab = {word: idx + 2 for idx, (word, _) in enumerate(word_counts.most_common(vocab_size))}[m[41m[m
+[32m+[m[32m    vocab['<PAD>'] = 0[m[41m[m
+[32m+[m[32m    vocab['<UNK>'] = 1[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    def text_to_sequence(text, vocab, max_length):[m[41m[m
+[32m+[m[32m        seq = [vocab.get(word, vocab['<UNK>']) for word in text][m[41m[m
+[32m+[m[32m        if len(seq) > max_length:[m[41m[m
+[32m+[m[32m            seq = seq[:max_length][m[41m[m
+[32m+[m[32m        return seq[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    train_sequences = [torch.tensor(text_to_sequence(text, vocab, max_length_rnn)) for text in train_texts][m[41m[m
+[32m+[m[32m    test_sequences = [torch.tensor(text_to_sequence(text, vocab, max_length_rnn)) for text in test_texts][m[41m[m
+[32m+[m[32m    train_lengths = [min(len(seq), max_length_rnn) for seq in train_sequences][m[41m[m
+[32m+[m[32m    test_lengths = [min(len(seq), max_length_rnn) for seq in test_sequences][m[41m[m
+[32m+[m[32m    train_padded = torch.nn.utils.rnn.pad_sequence(train_sequences, batch_first=True, padding_value=0)[m[41m[m
+[32m+[m[32m    test_padded = torch.nn.utils.rnn.pad_sequence(test_sequences, batch_first=True, padding_value=0)[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Сохранение processed данных для RNN[m[41m[m
+[32m+[m[32m    torch.save(train_padded, os.path.join(PROCESSED_DIR, 'imdb_train_padded_rnn.pt'))[m[41m[m
+[32m+[m[32m    torch.save(torch.tensor(train_lengths), os.path.join(PROCESSED_DIR, 'imdb_train_lengths_rnn.pt'))[m[41m[m
+[32m+[m[32m    torch.save(torch.tensor(train_labels), os.path.join(PROCESSED_DIR, 'imdb_train_labels_rnn.pt'))[m[41m[m
+[32m+[m[32m    torch.save(test_padded, os.path.join(PROCESSED_DIR, 'imdb_test_padded_rnn.pt'))[m[41m[m
+[32m+[m[32m    torch.save(torch.tensor(test_lengths), os.path.join(PROCESSED_DIR, 'imdb_test_lengths_rnn.pt'))[m[41m[m
+[32m+[m[32m    torch.save(torch.tensor(test_labels), os.path.join(PROCESSED_DIR, 'imdb_test_labels_rnn.pt'))[m[41m[m
+[32m+[m[32m    with open(os.path.join(PROCESSED_DIR, 'imdb_vocab.pkl'), 'wb') as f:[m[41m[m
+[32m+[m[32m        pickle.dump(vocab, f)[m[41m[m
+[32m+[m[32m    print(f"IMDB processed data (RNN) saved in {PROCESSED_DIR}")[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # 3. Для градиентного бустинга (TF-IDF)[m[41m[m
+[32m+[m[32m    train_texts_str = [' '.join(text) for text in train_texts][m[41m[m
+[32m+[m[32m    test_texts_str = [' '.join(text) for text in test_texts][m[41m[m
+[32m+[m[32m    vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))[m[41m[m
+[32m+[m[32m    X_train = vectorizer.fit_transform(train_texts_str)[m[41m[m
+[32m+[m[32m    X_test = vectorizer.transform(test_texts_str)[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    # Сохранение processed данных для бустинга[m[41m[m
+[32m+[m[32m    with open(os.path.join(PROCESSED_DIR, 'imdb_train_tfidf.pkl'), 'wb') as f:[m[41m[m
+[32m+[m[32m        pickle.dump(X_train, f)[m[41m[m
+[32m+[m[32m    with open(os.path.join(PROCESSED_DIR, 'imdb_test_tfidf.pkl'), 'wb') as f:[m[41m[m
+[32m+[m[32m        pickle.dump(X_test, f)[m[41m[m
+[32m+[m[32m    with open(os.path.join(PROCESSED_DIR, 'imdb_vectorizer.pkl'), 'wb') as f:[m[41m[m
+[32m+[m[32m        pickle.dump(vectorizer, f)[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'imdb_train_labels_boosting.npy'), np.array(train_labels))[m[41m[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'imdb_test_labels_boosting.npy'), np.array(test_labels))[m[41m[m
+[32m+[m[32m    print(f"IMDB processed data (Boosting) saved in {PROCESSED_DIR}")[m[41m[m
+[32m+[m[32m>>>>>>> bfff80e (Adding files)[m
+[33m409ed67[m Without linters
+[1mdiff --git a/mentorex2/mentorex2/dataset.py b/mentorex2/mentorex2/dataset.py[m
+[1mindex 65812d6..9df488f 100644[m
+[1m--- a/mentorex2/mentorex2/dataset.py[m
+[1m+++ b/mentorex2/mentorex2/dataset.py[m
+[36m@@ -37,13 +37,14 @@[m [mPROCESSED_DIR = os.path.join(DATA_DIR, 'processed')[m
+ for directory in [INTERIM_DIR, PROCESSED_DIR]:[m
+     os.makedirs(directory, exist_ok=True)[m
+ [m
+[32m+[m
+ def load_cifar10_data(data_dir=RAW_DIR):[m
+     """[m
+     Загружает CIFAR-10 датасет из локальной папки.[m
+     Сохраняет interim и processed данные.[m
+     """[m
+     cifar10_dir = os.path.join(data_dir, 'cifar10')[m
+[31m-    [m
+[32m+[m
+     if not os.path.exists(os.path.join(cifar10_dir, 'train')) or not os.path.exists(os.path.join(cifar10_dir, 'test')):[m
+         raise FileNotFoundError(f"CIFAR-10 data not found in {cifar10_dir}. Ensure train and test folders exist.")[m
+ [m
+[36m@@ -51,14 +52,14 @@[m [mdef load_cifar10_data(data_dir=RAW_DIR):[m
+     interim_transform = transforms.Compose([[m
+         transforms.ToTensor()[m
+     ])[m
+[31m-    [m
+[32m+[m
+     # Трансформации для processed (нормализация и ресайз для ViT)[m
+     processed_transform_vit = transforms.Compose([[m
+         transforms.Resize(224, interpolation=transforms.InterpolationMode.BICUBIC),[m
+         transforms.ToTensor(),[m
+         transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])[m
+     ])[m
+[31m-    [m
+[32m+[m
+     processed_transform_cnn = transforms.Compose([[m
+         transforms.ToTensor(),[m
+         transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])[m
+[36m@@ -74,19 +75,19 @@[m [mdef load_cifar10_data(data_dir=RAW_DIR):[m
+         transform=interim_transform[m
+     )[m
+ # Aboba[m
+[31m-    # Сохранение interim данных (сырые тензоры и метки) [m
+[32m+[m[32m    # Сохранение interim данных (сырые тензоры и метки)[m
+     train_images = [][m
+     train_labels = [][m
+     test_images = [][m
+     test_labels = [][m
+[31m-    [m
+[32m+[m
+     for img, label in train_dataset:[m
+         train_images.append(img.numpy())[m
+         train_labels.append(label)[m
+     for img, label in test_dataset:[m
+         test_images.append(img.numpy())[m
+         test_labels.append(label)[m
+[31m-    [m
+[32m+[m
+     np.save(os.path.join(INTERIM_DIR, 'cifar10_train_images.npy'), np.array(train_images))[m
+     np.save(os.path.join(INTERIM_DIR, 'cifar10_train_labels.npy'), np.array(train_labels))[m
+     np.save(os.path.join(INTERIM_DIR, 'cifar10_test_images.npy'), np.array(test_images))[m
+[36m@@ -122,7 +123,7 @@[m [mdef load_cifar10_data(data_dir=RAW_DIR):[m
+     for img, label in test_dataset_vit:[m
+         test_images_vit.append(img.numpy())[m
+         test_labels_vit.append(label)[m
+[31m-    [m
+[32m+[m
+     np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'), np.array(train_images_vit))[m
+     np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'), np.array(train_labels_vit))[m
+     np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'), np.array(test_images_vit))[m
+[36m@@ -139,13 +140,14 @@[m [mdef load_cifar10_data(data_dir=RAW_DIR):[m
+     for img, label in test_dataset_cnn:[m
+         test_images_cnn.append(img.numpy())[m
+         test_labels_cnn.append(label)[m
+[31m-    [m
+[32m+[m
+     np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'), np.array(train_images_cnn))[m
+     np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'), np.array(train_labels_cnn))[m
+     np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'), np.array(test_images_cnn))[m
+     np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'), np.array(test_labels_cnn))[m
+     print(f"CIFAR-10 processed data saved in {PROCESSED_DIR}")[m
+ [m
+[32m+[m
+ def load_imdb_data(data_dir=RAW_DIR):[m
+     """[m
+     Загружает IMDB датасет из CSV, выполняет предобработку и сохраняет interim и processed данные.[m
+[36m@@ -155,15 +157,16 @@[m [mdef load_imdb_data(data_dir=RAW_DIR):[m
+         raise FileNotFoundError(f"IMDB Dataset not found at {imdb_path}")[m
+ [m
+     df = pd.read_csv(imdb_path)[m
+[31m-    [m
+[32m+[m
+     # Предобработка текста[m
+     stop_words = set(stopwords.words('english'))[m
+[32m+[m
+     def clean_text(text):[m
+         text = re.sub(r'<br />', ' ', text.lower())[m
+         text = re.sub(r'[^a-z ]', '', text)[m
+         tokens = word_tokenize(text)[m
+         return [w for w in tokens if w not in stop_words][m
+[31m-    [m
+[32m+[m
+     df['cleaned_review'] = df['review'].apply(clean_text)[m
+     df['sentiment'] = df['sentiment'].map({'positive': 1, 'negative': 0})[m
+ [m
+[36m@@ -274,4 +277,3 @@[m [mdef load_imdb_data(data_dir=RAW_DIR):[m
+     np.save(os.path.join(PROCESSED_DIR, 'imdb_train_labels_boosting.npy'), np.array(train_labels))[m
+     np.save(os.path.join(PROCESSED_DIR, 'imdb_test_labels_boosting.npy'), np.array(test_labels))[m
+     print(f"IMDB processed data (Boosting) saved in {PROCESSED_DIR}")[m
+[31m-[m
+[33m8424351[m Test commit
+[1mdiff --git a/mentorex2/mentorex2/dataset.py b/mentorex2/mentorex2/dataset.py[m
+[1mindex 828aad6..65812d6 100644[m
+[1m--- a/mentorex2/mentorex2/dataset.py[m
+[1m+++ b/mentorex2/mentorex2/dataset.py[m
+[36m@@ -73,8 +73,8 @@[m [mdef load_cifar10_data(data_dir=RAW_DIR):[m
+         root=os.path.join(cifar10_dir, 'test'),[m
+         transform=interim_transform[m
+     )[m
+[31m-[m
+[31m-    # Сохранение interim данных (сырые тензоры и метки)[m
+[32m+[m[32m# Aboba[m
+[32m+[m[32m    # Сохранение interim данных (сырые тензоры и метки)[m[41m [m
+     train_images = [][m
+     train_labels = [][m
+     test_images = [][m
+[33me672b8b[m Initial commit with project structure, updated plots.py, and cleaned .gitignore
+[1mdiff --git a/mentorex2/mentorex2/dataset.py b/mentorex2/mentorex2/dataset.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..828aad6[m
+[1m--- /dev/null[m
+[1m+++ b/mentorex2/mentorex2/dataset.py[m
+[36m@@ -0,0 +1,277 @@[m
+[32m+[m[32m#!/usr/bin/env python[m
+[32m+[m[32m# coding: utf-8[m
+[32m+[m[32m"""[m
+[32m+[m[32mdataset.py - Scripts to download or generate data for the mentorex2 project.[m
+[32m+[m[32mSaves interim and processed datasets for CIFAR-10 and IMDB.[m
+[32m+[m[32m"""[m
+[32m+[m
+[32m+[m[32mimport os[m
+[32m+[m[32mimport pickle[m
+[32m+[m[32mimport numpy as np[m
+[32m+[m[32mimport pandas as pd[m
+[32m+[m[32mimport torch[m
+[32m+[m[32mfrom torchvision import datasets, transforms[m
+[32m+[m[32mfrom torch.utils.data import DataLoader[m
+[32m+[m[32mfrom transformers import BertTokenizer[m
+[32m+[m[32mfrom nltk.tokenize import word_tokenize[m
+[32m+[m[32mfrom nltk.corpus import stopwords[m
+[32m+[m[32mimport re[m
+[32m+[m[32mfrom collections import Counter[m
+[32m+[m[32mfrom sklearn.feature_extraction.text import TfidfVectorizer[m
+[32m+[m[32mfrom sklearn.model_selection import train_test_split[m
+[32m+[m[32mimport nltk[m
+[32m+[m
+[32m+[m[32m# Убедимся, что нужные NLTK-данные загружены[m
+[32m+[m[32mnltk.download('punkt_tab', quiet=True)[m
+[32m+[m[32mnltk.download('stopwords', quiet=True)[m
+[32m+[m[32mnltk.download('wordnet', quiet=True)[m
+[32m+[m
+[32m+[m[32m# Определение путей с учетом тройной вложенности и правильного расположения папки data[m
+[32m+[m[32mBASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))[m
+[32m+[m[32mDATA_DIR = os.path.join(BASE_DIR, 'mentorex2', 'data')  # Папка data в mentorex2/mentorex2/data[m
+[32m+[m[32mRAW_DIR = os.path.join(DATA_DIR, 'raw')[m
+[32m+[m[32mINTERIM_DIR = os.path.join(DATA_DIR, 'interim')[m
+[32m+[m[32mPROCESSED_DIR = os.path.join(DATA_DIR, 'processed')[m
+[32m+[m
+[32m+[m[32m# Создание директорий[m
+[32m+[m[32mfor directory in [INTERIM_DIR, PROCESSED_DIR]:[m
+[32m+[m[32m    os.makedirs(directory, exist_ok=True)[m
+[32m+[m
+[32m+[m[32mdef load_cifar10_data(data_dir=RAW_DIR):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Загружает CIFAR-10 датасет из локальной папки.[m
+[32m+[m[32m    Сохраняет interim и processed данные.[m
+[32m+[m[32m    """[m
+[32m+[m[32m    cifar10_dir = os.path.join(data_dir, 'cifar10')[m
+[32m+[m[41m    [m
+[32m+[m[32m    if not os.path.exists(os.path.join(cifar10_dir, 'train')) or not os.path.exists(os.path.join(cifar10_dir, 'test')):[m
+[32m+[m[32m        raise FileNotFoundError(f"CIFAR-10 data not found in {cifar10_dir}. Ensure train and test folders exist.")[m
+[32m+[m
+[32m+[m[32m    # Трансформации для interim (без аугментации, только ToTensor)[m
+[32m+[m[32m    interim_transform = transforms.Compose([[m
+[32m+[m[32m        transforms.ToTensor()[m
+[32m+[m[32m    ])[m
+[32m+[m[41m    [m
+[32m+[m[32m    # Трансформации для processed (нормализация и ресайз для ViT)[m
+[32m+[m[32m    processed_transform_vit = transforms.Compose([[m
+[32m+[m[32m        transforms.Resize(224, interpolation=transforms.InterpolationMode.BICUBIC),[m
+[32m+[m[32m        transforms.ToTensor(),[m
+[32m+[m[32m        transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])[m
+[32m+[m[32m    ])[m
+[32m+[m[41m    [m
+[32m+[m[32m    processed_transform_cnn = transforms.Compose([[m
+[32m+[m[32m        transforms.ToTensor(),[m
+[32m+[m[32m        transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])[m
+[32m+[m[32m    ])[m
+[32m+[m
+[32m+[m[32m    # Загрузка датасета[m
+[32m+[m[32m    train_dataset = datasets.ImageFolder([m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'train'),[m
+[32m+[m[32m        transform=interim_transform[m
+[32m+[m[32m    )[m
+[32m+[m[32m    test_dataset = datasets.ImageFolder([m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'test'),[m
+[32m+[m[32m        transform=interim_transform[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    # Сохранение interim данных (сырые тензоры и метки)[m
+[32m+[m[32m    train_images = [][m
+[32m+[m[32m    train_labels = [][m
+[32m+[m[32m    test_images = [][m
+[32m+[m[32m    test_labels = [][m
+[32m+[m[41m    [m
+[32m+[m[32m    for img, label in train_dataset:[m
+[32m+[m[32m        train_images.append(img.numpy())[m
+[32m+[m[32m        train_labels.append(label)[m
+[32m+[m[32m    for img, label in test_dataset:[m
+[32m+[m[32m        test_images.append(img.numpy())[m
+[32m+[m[32m        test_labels.append(label)[m
+[32m+[m[41m    [m
+[32m+[m[32m    np.save(os.path.join(INTERIM_DIR, 'cifar10_train_images.npy'), np.array(train_images))[m
+[32m+[m[32m    np.save(os.path.join(INTERIM_DIR, 'cifar10_train_labels.npy'), np.array(train_labels))[m
+[32m+[m[32m    np.save(os.path.join(INTERIM_DIR, 'cifar10_test_images.npy'), np.array(test_images))[m
+[32m+[m[32m    np.save(os.path.join(INTERIM_DIR, 'cifar10_test_labels.npy'), np.array(test_labels))[m
+[32m+[m[32m    print(f"CIFAR-10 interim data saved in {INTERIM_DIR}")[m
+[32m+[m
+[32m+[m[32m    # Сохранение processed данных (нормализованные для ViT и CNN)[m
+[32m+[m[32m    train_dataset_vit = datasets.ImageFolder([m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'train'),[m
+[32m+[m[32m        transform=processed_transform_vit[m
+[32m+[m[32m    )[m
+[32m+[m[32m    test_dataset_vit = datasets.ImageFolder([m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'test'),[m
+[32m+[m[32m        transform=processed_transform_vit[m
+[32m+[m[32m    )[m
+[32m+[m[32m    train_dataset_cnn = datasets.ImageFolder([m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'train'),[m
+[32m+[m[32m        transform=processed_transform_cnn[m
+[32m+[m[32m    )[m
+[32m+[m[32m    test_dataset_cnn = datasets.ImageFolder([m
+[32m+[m[32m        root=os.path.join(cifar10_dir, 'test'),[m
+[32m+[m[32m        transform=processed_transform_cnn[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    # Сохранение processed для ViT[m
+[32m+[m[32m    train_images_vit = [][m
+[32m+[m[32m    train_labels_vit = [][m
+[32m+[m[32m    test_images_vit = [][m
+[32m+[m[32m    test_labels_vit = [][m
+[32m+[m[32m    for img, label in train_dataset_vit:[m
+[32m+[m[32m        train_images_vit.append(img.numpy())[m
+[32m+[m[32m        train_labels_vit.append(label)[m
+[32m+[m[32m    for img, label in test_dataset_vit:[m
+[32m+[m[32m        test_images_vit.append(img.numpy())[m
+[32m+[m[32m        test_labels_vit.append(label)[m
+[32m+[m[41m    [m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'), np.array(train_images_vit))[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'), np.array(train_labels_vit))[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'), np.array(test_images_vit))[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'), np.array(test_labels_vit))[m
+[32m+[m
+[32m+[m[32m    # Сохранение processed для CNN[m
+[32m+[m[32m    train_images_cnn = [][m
+[32m+[m[32m    train_labels_cnn = [][m
+[32m+[m[32m    test_images_cnn = [][m
+[32m+[m[32m    test_labels_cnn = [][m
+[32m+[m[32m    for img, label in train_dataset_cnn:[m
+[32m+[m[32m        train_images_cnn.append(img.numpy())[m
+[32m+[m[32m        train_labels_cnn.append(label)[m
+[32m+[m[32m    for img, label in test_dataset_cnn:[m
+[32m+[m[32m        test_images_cnn.append(img.numpy())[m
+[32m+[m[32m        test_labels_cnn.append(label)[m
+[32m+[m[41m    [m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'), np.array(train_images_cnn))[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'), np.array(train_labels_cnn))[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'), np.array(test_images_cnn))[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'), np.array(test_labels_cnn))[m
+[32m+[m[32m    print(f"CIFAR-10 processed data saved in {PROCESSED_DIR}")[m
+[32m+[m
+[32m+[m[32mdef load_imdb_data(data_dir=RAW_DIR):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Загружает IMDB датасет из CSV, выполняет предобработку и сохраняет interim и processed данные.[m
+[32m+[m[32m    """[m
+[32m+[m[32m    imdb_path = os.path.join(data_dir, 'IMDB Dataset.csv')[m
+[32m+[m[32m    if not os.path.exists(imdb_path):[m
+[32m+[m[32m        raise FileNotFoundError(f"IMDB Dataset not found at {imdb_path}")[m
+[32m+[m
+[32m+[m[32m    df = pd.read_csv(imdb_path)[m
+[32m+[m[41m    [m
+[32m+[m[32m    # Предобработка текста[m
+[32m+[m[32m    stop_words = set(stopwords.words('english'))[m
+[32m+[m[32m    def clean_text(text):[m
+[32m+[m[32m        text = re.sub(r'<br />', ' ', text.lower())[m
+[32m+[m[32m        text = re.sub(r'[^a-z ]', '', text)[m
+[32m+[m[32m        tokens = word_tokenize(text)[m
+[32m+[m[32m        return [w for w in tokens if w not in stop_words][m
+[32m+[m[41m    [m
+[32m+[m[32m    df['cleaned_review'] = df['review'].apply(clean_text)[m
+[32m+[m[32m    df['sentiment'] = df['sentiment'].map({'positive': 1, 'negative': 0})[m
+[32m+[m
+[32m+[m[32m    # Разделение на тренировочную и тестовую выборки[m
+[32m+[m[32m    train_texts, test_texts, train_labels, test_labels = train_test_split([m
+[32m+[m[32m        df['cleaned_review'].tolist(),[m
+[32m+[m[32m        df['sentiment'].tolist(),[m
+[32m+[m[32m        test_size=0.2,[m
+[32m+[m[32m        random_state=42,[m
+[32m+[m[32m        stratify=df['sentiment'][m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    # Сохранение interim данных (очищенные тексты и метки)[m
+[32m+[m[32m    interim_data = {[m
+[32m+[m[32m        'train_texts': train_texts,[m
+[32m+[m[32m        'train_labels': train_labels,[m
+[32m+[m[32m        'test_texts': test_texts,[m
+[32m+[m[32m        'test_labels': test_labels[m
+[32m+[m[32m    }[m
+[32m+[m[32m    with open(os.path.join(INTERIM_DIR, 'imdb_interim.pkl'), 'wb') as f:[m
+[32m+[m[32m        pickle.dump(interim_data, f)[m
+[32m+[m[32m    print(f"IMDB interim data saved in {INTERIM_DIR}")[m
+[32m+[m
+[32m+[m[32m    # Подготовка processed данных[m
+[32m+[m[32m    # 1. Для BERT (токенизация)[m
+[32m+[m[32m    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')[m
+[32m+[m[32m    max_length_bert = 512[m
+[32m+[m
+[32m+[m[32m    def tokenize_data(texts, labels, max_length):[m
+[32m+[m[32m        input_ids = [][m
+[32m+[m[32m        attention_masks = [][m
+[32m+[m[32m        for text in texts:[m
+[32m+[m[32m            encoded_dict = tokenizer.encode_plus([m
+[32m+[m[32m                text,[m
+[32m+[m[32m                add_special_tokens=True,[m
+[32m+[m[32m                max_length=max_length,[m
+[32m+[m[32m                padding='max_length',[m
+[32m+[m[32m                truncation=True,[m
+[32m+[m[32m                return_attention_mask=True,[m
+[32m+[m[32m                return_tensors='pt'[m
+[32m+[m[32m            )[m
+[32m+[m[32m            input_ids.append(encoded_dict['input_ids'])[m
+[32m+[m[32m            attention_masks.append(encoded_dict['attention_mask'])[m
+[32m+[m[32m        input_ids = torch.cat(input_ids, dim=0)[m
+[32m+[m[32m        attention_masks = torch.cat(attention_masks, dim=0)[m
+[32m+[m[32m        labels = torch.tensor(labels)[m
+[32m+[m[32m        return input_ids, attention_masks, labels[m
+[32m+[m
+[32m+[m[32m    train_input_ids, train_attention_masks, train_labels_bert = tokenize_data(train_texts, train_labels, max_length_bert)[m
+[32m+[m[32m    test_input_ids, test_attention_masks, test_labels_bert = tokenize_data(test_texts, test_labels, max_length_bert)[m
+[32m+[m
+[32m+[m[32m    # Сохранение processed данных для BERT[m
+[32m+[m[32m    torch.save(train_input_ids, os.path.join(PROCESSED_DIR, 'imdb_train_input_ids.pt'))[m
+[32m+[m[32m    torch.save(train_attention_masks, os.path.join(PROCESSED_DIR, 'imdb_train_attention_masks.pt'))[m
+[32m+[m[32m    torch.save(train_labels_bert, os.path.join(PROCESSED_DIR, 'imdb_train_labels_bert.pt'))[m
+[32m+[m[32m    torch.save(test_input_ids, os.path.join(PROCESSED_DIR, 'imdb_test_input_ids.pt'))[m
+[32m+[m[32m    torch.save(test_attention_masks, os.path.join(PROCESSED_DIR, 'imdb_test_attention_masks.pt'))[m
+[32m+[m[32m    torch.save(test_labels_bert, os.path.join(PROCESSED_DIR, 'imdb_test_labels_bert.pt'))[m
+[32m+[m[32m    print(f"IMDB processed data (BERT) saved in {PROCESSED_DIR}")[m
+[32m+[m
+[32m+[m[32m    # 2. Для RNN (LSTM/GRU)[m
+[32m+[m[32m    vocab_size = 20000[m
+[32m+[m[32m    max_length_rnn = 256[m
+[32m+[m[32m    all_train_words = [word for text in train_texts for word in text][m
+[32m+[m[32m    word_counts = Counter(all_train_words)[m
+[32m+[m[32m    vocab = {word: idx + 2 for idx, (word, _) in enumerate(word_counts.most_common(vocab_size))}[m
+[32m+[m[32m    vocab['<PAD>'] = 0[m
+[32m+[m[32m    vocab['<UNK>'] = 1[m
+[32m+[m
+[32m+[m[32m    def text_to_sequence(text, vocab, max_length):[m
+[32m+[m[32m        seq = [vocab.get(word, vocab['<UNK>']) for word in text][m
+[32m+[m[32m        if len(seq) > max_length:[m
+[32m+[m[32m            seq = seq[:max_length][m
+[32m+[m[32m        return seq[m
+[32m+[m
+[32m+[m[32m    train_sequences = [torch.tensor(text_to_sequence(text, vocab, max_length_rnn)) for text in train_texts][m
+[32m+[m[32m    test_sequences = [torch.tensor(text_to_sequence(text, vocab, max_length_rnn)) for text in test_texts][m
+[32m+[m[32m    train_lengths = [min(len(seq), max_length_rnn) for seq in train_sequences][m
+[32m+[m[32m    test_lengths = [min(len(seq), max_length_rnn) for seq in test_sequences][m
+[32m+[m[32m    train_padded = torch.nn.utils.rnn.pad_sequence(train_sequences, batch_first=True, padding_value=0)[m
+[32m+[m[32m    test_padded = torch.nn.utils.rnn.pad_sequence(test_sequences, batch_first=True, padding_value=0)[m
+[32m+[m
+[32m+[m[32m    # Сохранение processed данных для RNN[m
+[32m+[m[32m    torch.save(train_padded, os.path.join(PROCESSED_DIR, 'imdb_train_padded_rnn.pt'))[m
+[32m+[m[32m    torch.save(torch.tensor(train_lengths), os.path.join(PROCESSED_DIR, 'imdb_train_lengths_rnn.pt'))[m
+[32m+[m[32m    torch.save(torch.tensor(train_labels), os.path.join(PROCESSED_DIR, 'imdb_train_labels_rnn.pt'))[m
+[32m+[m[32m    torch.save(test_padded, os.path.join(PROCESSED_DIR, 'imdb_test_padded_rnn.pt'))[m
+[32m+[m[32m    torch.save(torch.tensor(test_lengths), os.path.join(PROCESSED_DIR, 'imdb_test_lengths_rnn.pt'))[m
+[32m+[m[32m    torch.save(torch.tensor(test_labels), os.path.join(PROCESSED_DIR, 'imdb_test_labels_rnn.pt'))[m
+[32m+[m[32m    with open(os.path.join(PROCESSED_DIR, 'imdb_vocab.pkl'), 'wb') as f:[m
+[32m+[m[32m        pickle.dump(vocab, f)[m
+[32m+[m[32m    print(f"IMDB processed data (RNN) saved in {PROCESSED_DIR}")[m
+[32m+[m
+[32m+[m[32m    # 3. Для градиентного бустинга (TF-IDF)[m
+[32m+[m[32m    train_texts_str = [' '.join(text) for text in train_texts][m
+[32m+[m[32m    test_texts_str = [' '.join(text) for text in test_texts][m
+[32m+[m[32m    vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))[m
+[32m+[m[32m    X_train = vectorizer.fit_transform(train_texts_str)[m
+[32m+[m[32m    X_test = vectorizer.transform(test_texts_str)[m
+[32m+[m
+[32m+[m[32m    # Сохранение processed данных для бустинга[m
+[32m+[m[32m    with open(os.path.join(PROCESSED_DIR, 'imdb_train_tfidf.pkl'), 'wb') as f:[m
+[32m+[m[32m        pickle.dump(X_train, f)[m
+[32m+[m[32m    with open(os.path.join(PROCESSED_DIR, 'imdb_test_tfidf.pkl'), 'wb') as f:[m
+[32m+[m[32m        pickle.dump(X_test, f)[m
+[32m+[m[32m    with open(os.path.join(PROCESSED_DIR, 'imdb_vectorizer.pkl'), 'wb') as f:[m
+[32m+[m[32m        pickle.dump(vectorizer, f)[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'imdb_train_labels_boosting.npy'), np.array(train_labels))[m
+[32m+[m[32m    np.save(os.path.join(PROCESSED_DIR, 'imdb_test_labels_boosting.npy'), np.array(test_labels))[m
+[32m+[m[32m    print(f"IMDB processed data (Boosting) saved in {PROCESSED_DIR}")[m
+[32m+[m
