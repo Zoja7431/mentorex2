@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 """
-dataset.py - Scripts to download or generate data for the mentorex2 project.
-Saves interim and processed datasets for CIFAR-10 and IMDB.
+dataset.py - Script to preprocess CIFAR-10 (ViT, CNN) and IMDB (BERT, RNN, Boosting) datasets for the mentorex2 project.
 """
-
+import argparse
 import os
-import pickle
 import numpy as np
 import pandas as pd
 import torch
@@ -17,8 +15,9 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import re
 from collections import Counter
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+import pickle
 import nltk
 
 # Убедимся, что нужные NLTK-данные загружены
@@ -26,7 +25,7 @@ nltk.download('punkt_tab', quiet=True)
 nltk.download('stopwords', quiet=True)
 nltk.download('wordnet', quiet=True)
 
-# Определение путей с учетом тройной вложенности и правильного расположения папки data
+# Определение путей 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA_DIR = os.path.join(BASE_DIR, 'mentorex2', 'data')  # Папка data в mentorex2/mentorex2/data
 RAW_DIR = os.path.join(DATA_DIR, 'raw')
@@ -38,20 +37,17 @@ for directory in [INTERIM_DIR, PROCESSED_DIR]:
     os.makedirs(directory, exist_ok=True)
 
 
-def load_cifar10_data(data_dir=RAW_DIR):
+def process_cifar10_vit():
     """
-    Загружает CIFAR-10 датасет из локальной папки.
-    Сохраняет interim и processed данные.
+    Preprocess CIFAR-10 dataset for ViT with batch processing.
+    Saves interim and processed data.
     """
-    cifar10_dir = os.path.join(data_dir, 'cifar10')
-
+    cifar10_dir = os.path.join(RAW_DIR, 'cifar10')
     if not os.path.exists(os.path.join(cifar10_dir, 'train')) or not os.path.exists(os.path.join(cifar10_dir, 'test')):
         raise FileNotFoundError(f"CIFAR-10 data not found in {cifar10_dir}. Ensure train and test folders exist.")
 
     # Трансформации для interim (без аугментации, только ToTensor)
-    interim_transform = transforms.Compose([
-        transforms.ToTensor()
-    ])
+    interim_transform = transforms.Compose([transforms.ToTensor()])
 
     # Трансформации для processed (нормализация и ресайз для ViT)
     processed_transform_vit = transforms.Compose([
@@ -60,105 +56,92 @@ def load_cifar10_data(data_dir=RAW_DIR):
         transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])
     ])
 
+    # Загрузка датасета
+    train_dataset = datasets.ImageFolder(root=os.path.join(cifar10_dir, 'train'), transform=interim_transform)
+    test_dataset = datasets.ImageFolder(root=os.path.join(cifar10_dir, 'test'), transform=interim_transform)
+    train_dataset_vit = datasets.ImageFolder(root=os.path.join(cifar10_dir, 'train'), transform=processed_transform_vit)
+    test_dataset_vit = datasets.ImageFolder(root=os.path.join(cifar10_dir, 'test'), transform=processed_transform_vit)
+
+    # DataLoaders для экономии памяти
+    batch_size = 1000
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    train_loader_vit = DataLoader(train_dataset_vit, batch_size=batch_size, shuffle=False)
+    test_loader_vit = DataLoader(test_dataset_vit, batch_size=batch_size, shuffle=False)
+
+    # Сохранение interim данных
+    with open(os.path.join(INTERIM_DIR, 'vit_cifar10_train_images.npy'), 'wb') as f_images, \
+         open(os.path.join(INTERIM_DIR, 'vit_cifar10_train_labels.npy'), 'wb') as f_labels:
+        for batch_images, batch_labels in train_loader:
+            np.save(f_images, batch_images.numpy(), allow_pickle=False)
+            np.save(f_labels, batch_labels.numpy(), allow_pickle=False)
+    with open(os.path.join(INTERIM_DIR, 'vit_cifar10_test_images.npy'), 'wb') as f_images, \
+         open(os.path.join(INTERIM_DIR, 'vit_cifar10_test_labels.npy'), 'wb') as f_labels:
+        for batch_images, batch_labels in test_loader:
+            np.save(f_images, batch_images.numpy(), allow_pickle=False)
+            np.save(f_labels, batch_labels.numpy(), allow_pickle=False)
+    print(f"CIFAR-10 interim data for ViT saved in {INTERIM_DIR}")
+
+    # Сохранение processed данных для ViT
+    with open(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'), 'wb') as f_images, \
+         open(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'), 'wb') as f_labels:
+        for batch_images, batch_labels in train_loader_vit:
+            np.save(f_images, batch_images.numpy(), allow_pickle=False)
+            np.save(f_labels, batch_labels.numpy(), allow_pickle=False)
+    with open(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'), 'wb') as f_images, \
+         open(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'), 'wb') as f_labels:
+        for batch_images, batch_labels in test_loader_vit:
+            np.save(f_images, batch_images.numpy(), allow_pickle=False)
+            np.save(f_labels, batch_labels.numpy(), allow_pickle=False)
+    print(f"CIFAR-10 processed data for ViT saved in {PROCESSED_DIR}")
+
+def process_cifar10_cnn():
+    """
+    Preprocess CIFAR-10 dataset for CNN with batch processing.
+    Saves processed data.
+    """
+    cifar10_dir = os.path.join(RAW_DIR, 'cifar10')
+    if not os.path.exists(os.path.join(cifar10_dir, 'train')) or not os.path.exists(os.path.join(cifar10_dir, 'test')):
+        raise FileNotFoundError(f"CIFAR-10 data not found in {cifar10_dir}. Ensure train and test folders exist.")
+
+    # Трансформации для processed (нормализация для CNN)
     processed_transform_cnn = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.491, 0.482, 0.446], std=[0.247, 0.243, 0.261])
     ])
 
     # Загрузка датасета
-    train_dataset = datasets.ImageFolder(
-        root=os.path.join(cifar10_dir, 'train'),
-        transform=interim_transform
-    )
-    test_dataset = datasets.ImageFolder(
-        root=os.path.join(cifar10_dir, 'test'),
-        transform=interim_transform
-    )
-# Aboba
-    # Сохранение interim данных (сырые тензоры и метки)
-    train_images = []
-    train_labels = []
-    test_images = []
-    test_labels = []
+    train_dataset_cnn = datasets.ImageFolder(root=os.path.join(cifar10_dir, 'train'), transform=processed_transform_cnn)
+    test_dataset_cnn = datasets.ImageFolder(root=os.path.join(cifar10_dir, 'test'), transform=processed_transform_cnn)
 
-    for img, label in train_dataset:
-        train_images.append(img.numpy())
-        train_labels.append(label)
-    for img, label in test_dataset:
-        test_images.append(img.numpy())
-        test_labels.append(label)
+    # DataLoaders для экономии памяти
+    batch_size = 1000
+    train_loader_cnn = DataLoader(train_dataset_cnn, batch_size=batch_size, shuffle=False)
+    test_loader_cnn = DataLoader(test_dataset_cnn, batch_size=batch_size, shuffle=False)
 
-    np.save(os.path.join(INTERIM_DIR, 'cifar10_train_images.npy'), np.array(train_images))
-    np.save(os.path.join(INTERIM_DIR, 'cifar10_train_labels.npy'), np.array(train_labels))
-    np.save(os.path.join(INTERIM_DIR, 'cifar10_test_images.npy'), np.array(test_images))
-    np.save(os.path.join(INTERIM_DIR, 'cifar10_test_labels.npy'), np.array(test_labels))
-    print(f"CIFAR-10 interim data saved in {INTERIM_DIR}")
+    # Сохранение processed данных для CNN
+    with open(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'), 'wb') as f_images, \
+         open(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'), 'wb') as f_labels:
+        for batch_images, batch_labels in train_loader_cnn:
+            np.save(f_images, batch_images.numpy(), allow_pickle=False)
+            np.save(f_labels, batch_labels.numpy(), allow_pickle=False)
+    with open(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'), 'wb') as f_images, \
+         open(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'), 'wb') as f_labels:
+        for batch_images, batch_labels in test_loader_cnn:
+            np.save(f_images, batch_images.numpy(), allow_pickle=False)
+            np.save(f_labels, batch_labels.numpy(), allow_pickle=False)
+    print(f"CIFAR-10 processed data for CNN saved in {PROCESSED_DIR}")
 
-    # Сохранение processed данных (нормализованные для ViT и CNN)
-    train_dataset_vit = datasets.ImageFolder(
-        root=os.path.join(cifar10_dir, 'train'),
-        transform=processed_transform_vit
-    )
-    test_dataset_vit = datasets.ImageFolder(
-        root=os.path.join(cifar10_dir, 'test'),
-        transform=processed_transform_vit
-    )
-    train_dataset_cnn = datasets.ImageFolder(
-        root=os.path.join(cifar10_dir, 'train'),
-        transform=processed_transform_cnn
-    )
-    test_dataset_cnn = datasets.ImageFolder(
-        root=os.path.join(cifar10_dir, 'test'),
-        transform=processed_transform_cnn
-    )
-
-    # Сохранение processed для ViT
-    train_images_vit = []
-    train_labels_vit = []
-    test_images_vit = []
-    test_labels_vit = []
-    for img, label in train_dataset_vit:
-        train_images_vit.append(img.numpy())
-        train_labels_vit.append(label)
-    for img, label in test_dataset_vit:
-        test_images_vit.append(img.numpy())
-        test_labels_vit.append(label)
-
-    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'), np.array(train_images_vit))
-    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'), np.array(train_labels_vit))
-    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'), np.array(test_images_vit))
-    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'), np.array(test_labels_vit))
-
-    # Сохранение processed для CNN
-    train_images_cnn = []
-    train_labels_cnn = []
-    test_images_cnn = []
-    test_labels_cnn = []
-    for img, label in train_dataset_cnn:
-        train_images_cnn.append(img.numpy())
-        train_labels_cnn.append(label)
-    for img, label in test_dataset_cnn:
-        test_images_cnn.append(img.numpy())
-        test_labels_cnn.append(label)
-
-    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'), np.array(train_images_cnn))
-    np.save(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'), np.array(train_labels_cnn))
-    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'), np.array(test_images_cnn))
-    np.save(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'), np.array(test_labels_cnn))
-    print(f"CIFAR-10 processed data saved in {PROCESSED_DIR}")
-
-
-def load_imdb_data(data_dir=RAW_DIR):
+def process_imdb():
     """
-    Загружает IMDB датасет из CSV, выполняет предобработку и сохраняет interim и processed данные.
+    Preprocess IMDB dataset for BERT, RNN, and Boosting.
+    Saves interim and processed data.
     """
-    imdb_path = os.path.join(data_dir, 'IMDB Dataset.csv')
+    imdb_path = os.path.join(RAW_DIR, 'IMDB Dataset.csv')
     if not os.path.exists(imdb_path):
         raise FileNotFoundError(f"IMDB Dataset not found at {imdb_path}")
 
     df = pd.read_csv(imdb_path)
-
-    # Предобработка текста
     stop_words = set(stopwords.words('english'))
 
     def clean_text(text):
@@ -170,7 +153,7 @@ def load_imdb_data(data_dir=RAW_DIR):
     df['cleaned_review'] = df['review'].apply(clean_text)
     df['sentiment'] = df['sentiment'].map({'positive': 1, 'negative': 0})
 
-    # Разделение на тренировочную и тестовую выборки
+    # Разделение на тренировочную и тестовую выборки (80/20)
     train_texts, test_texts, train_labels, test_labels = train_test_split(
         df['cleaned_review'].tolist(),
         df['sentiment'].tolist(),
@@ -179,7 +162,7 @@ def load_imdb_data(data_dir=RAW_DIR):
         stratify=df['sentiment']
     )
 
-    # Сохранение interim данных (очищенные тексты и метки)
+    # Сохранение interim данных
     interim_data = {
         'train_texts': train_texts,
         'train_labels': train_labels,
@@ -190,8 +173,7 @@ def load_imdb_data(data_dir=RAW_DIR):
         pickle.dump(interim_data, f)
     print(f"IMDB interim data saved in {INTERIM_DIR}")
 
-    # Подготовка processed данных
-    # 1. Для BERT (токенизация)
+    # BERT preprocessing
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     max_length_bert = 512
 
@@ -200,7 +182,7 @@ def load_imdb_data(data_dir=RAW_DIR):
         attention_masks = []
         for text in texts:
             encoded_dict = tokenizer.encode_plus(
-                text,
+                ' '.join(text),
                 add_special_tokens=True,
                 max_length=max_length,
                 padding='max_length',
@@ -218,7 +200,6 @@ def load_imdb_data(data_dir=RAW_DIR):
     train_input_ids, train_attention_masks, train_labels_bert = tokenize_data(train_texts, train_labels, max_length_bert)
     test_input_ids, test_attention_masks, test_labels_bert = tokenize_data(test_texts, test_labels, max_length_bert)
 
-    # Сохранение processed данных для BERT
     torch.save(train_input_ids, os.path.join(PROCESSED_DIR, 'imdb_train_input_ids.pt'))
     torch.save(train_attention_masks, os.path.join(PROCESSED_DIR, 'imdb_train_attention_masks.pt'))
     torch.save(train_labels_bert, os.path.join(PROCESSED_DIR, 'imdb_train_labels_bert.pt'))
@@ -227,12 +208,12 @@ def load_imdb_data(data_dir=RAW_DIR):
     torch.save(test_labels_bert, os.path.join(PROCESSED_DIR, 'imdb_test_labels_bert.pt'))
     print(f"IMDB processed data (BERT) saved in {PROCESSED_DIR}")
 
-    # 2. Для RNN (LSTM/GRU)
+    # RNN preprocessing
     vocab_size = 20000
     max_length_rnn = 256
     all_train_words = [word for text in train_texts for word in text]
     word_counts = Counter(all_train_words)
-    vocab = {word: idx + 2 for idx, (word, _) in enumerate(word_counts.most_common(vocab_size))}
+    vocab = {word: idx + 2 for idx, (word, _) in enumerate(word_counts.most_common(vocab_size - 2))}
     vocab['<PAD>'] = 0
     vocab['<UNK>'] = 1
 
@@ -249,7 +230,6 @@ def load_imdb_data(data_dir=RAW_DIR):
     train_padded = torch.nn.utils.rnn.pad_sequence(train_sequences, batch_first=True, padding_value=0)
     test_padded = torch.nn.utils.rnn.pad_sequence(test_sequences, batch_first=True, padding_value=0)
 
-    # Сохранение processed данных для RNN
     torch.save(train_padded, os.path.join(PROCESSED_DIR, 'imdb_train_padded_rnn.pt'))
     torch.save(torch.tensor(train_lengths), os.path.join(PROCESSED_DIR, 'imdb_train_lengths_rnn.pt'))
     torch.save(torch.tensor(train_labels), os.path.join(PROCESSED_DIR, 'imdb_train_labels_rnn.pt'))
@@ -260,20 +240,36 @@ def load_imdb_data(data_dir=RAW_DIR):
         pickle.dump(vocab, f)
     print(f"IMDB processed data (RNN) saved in {PROCESSED_DIR}")
 
-    # 3. Для градиентного бустинга (TF-IDF)
+    # Boosting preprocessing
     train_texts_str = [' '.join(text) for text in train_texts]
     test_texts_str = [' '.join(text) for text in test_texts]
-    vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
-    X_train = vectorizer.fit_transform(train_texts_str)
-    X_test = vectorizer.transform(test_texts_str)
+    vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
+    train_tfidf = vectorizer.fit_transform(train_texts_str)
+    test_tfidf = vectorizer.transform(test_texts_str)
 
-    # Сохранение processed данных для бустинга
     with open(os.path.join(PROCESSED_DIR, 'imdb_train_tfidf.pkl'), 'wb') as f:
-        pickle.dump(X_train, f)
+        pickle.dump(train_tfidf, f)
     with open(os.path.join(PROCESSED_DIR, 'imdb_test_tfidf.pkl'), 'wb') as f:
-        pickle.dump(X_test, f)
+        pickle.dump(test_tfidf, f)
     with open(os.path.join(PROCESSED_DIR, 'imdb_vectorizer.pkl'), 'wb') as f:
         pickle.dump(vectorizer, f)
     np.save(os.path.join(PROCESSED_DIR, 'imdb_train_labels_boosting.npy'), np.array(train_labels))
     np.save(os.path.join(PROCESSED_DIR, 'imdb_test_labels_boosting.npy'), np.array(test_labels))
     print(f"IMDB processed data (Boosting) saved in {PROCESSED_DIR}")
+
+def main():
+    parser = argparse.ArgumentParser(description="Preprocess datasets for mentorex2 project")
+    parser.add_argument('--cifar10_vit', action='store_true', help='Process CIFAR-10 for ViT')
+    parser.add_argument('--cifar10_cnn', action='store_true', help='Process CIFAR-10 for CNN')
+    parser.add_argument('--imdb', action='store_true', help='Process IMDB for BERT, RNN, Boosting')
+    args = parser.parse_args()
+
+    if args.cifar10_vit:
+        process_cifar10_vit()
+    if args.cifar10_cnn:
+        process_cifar10_cnn()
+    if args.imdb:
+        process_imdb()
+
+if __name__ == "__main__":
+    main()
