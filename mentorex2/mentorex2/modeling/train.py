@@ -35,9 +35,11 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Using device: {device}")
+if torch.cuda.is_available():
+    logger.info(f"GPU: {torch.cuda.get_device_name(0)}, CUDA Version: {torch.version.cuda}")
+else:
+    logger.warning("CUDA is not available, training on CPU")
 
 
 class SimpleCNN(nn.Module):
@@ -205,6 +207,13 @@ def train_cnn(train_loader, test_loader, output_dir):
 def train_bert(train_loader, test_loader, output_dir):
     logger.info("Starting BERT training...")
     try:
+        # Убедимся, что device определяется один раз
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        logger.info(f"Using device: {device}")
+        if torch.cuda.is_available():
+            logger.info(f"GPU: {torch.cuda.get_device_name(0)}, CUDA Version: {torch.version.cuda}")
+        else:
+            logger.warning("CUDA is not available, training on CPU")
         # Загрузка данных
         logger.info("Loading IMDB data for BERT...")
         data_files = [
@@ -217,28 +226,29 @@ def train_bert(train_loader, test_loader, output_dir):
                 logger.error(f"Data file {file_path} does not exist")
                 raise FileNotFoundError(f"Data file {file_path} does not exist")
         
-        train_input_ids = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_input_ids.pt'))
-        train_attention_masks = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_attention_masks.pt'))
-        train_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_bert.pt'))
-        test_input_ids = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_input_ids.pt'))
-        test_attention_masks = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_attention_masks.pt'))
-        test_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_bert.pt'))
+        train_input_ids = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_input_ids.pt'), map_location=device, weights_only=True)
+        train_attention_masks = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_attention_masks.pt'), map_location=device, weights_only=True)
+        train_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_bert.pt'), map_location=device, weights_only=True)
+        test_input_ids = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_input_ids.pt'), map_location=device, weights_only=True)
+        test_attention_masks = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_attention_masks.pt'), map_location=device, weights_only=True)
+        test_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_bert.pt'), map_location=device, weights_only=True)
         logger.info("IMDB data loaded successfully")
 
         # Проверка формата данных
-        logger.info(f"Train input_ids shape: {train_input_ids.shape}, dtype: {train_input_ids.dtype}")
-        logger.info(f"Train labels shape: {train_labels.shape}, dtype: {train_labels.dtype}")
+        logger.info(f"Train input_ids shape: {train_input_ids.shape}, dtype: {train_input_ids.dtype}, device: {train_input_ids.device}")
+        logger.info(f"Train labels shape: {train_labels.shape}, dtype: {train_labels.dtype}, device: {train_labels.device}")
 
         # Создание датасетов
         train_dataset = TensorDataset(train_input_ids, train_attention_masks, train_labels)
         test_dataset = TensorDataset(test_input_ids, test_attention_masks, test_labels)
-        train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=2, pin_memory=True)
+        test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=2, pin_memory=True)
         logger.info(f"Created DataLoaders: train batches={len(train_loader)}, test batches={len(test_loader)}")
 
         # Инициализация модели
         logger.info("Initializing BERT model...")
         model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=2).to(device)
+        logger.info(f"BERT model moved to {device}, Memory allocated: {torch.cuda.memory_allocated(0)/1024**3:.2f} GB")
         optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE_BERT, weight_decay=0.01)
 
         # Обучение
@@ -247,8 +257,9 @@ def train_bert(train_loader, test_loader, output_dir):
             for epoch in range(EPOCHS_BERT):
                 model.train()
                 total_train_loss = 0
-                for batch in tqdm(train_loader, desc=f"BERT Epoch {epoch+1}"):
+                for batch_idx, batch in enumerate(tqdm(train_loader, desc=f"BERT Epoch {epoch+1}")):
                     b_input_ids, b_input_mask, b_labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                    logger.debug(f"Batch {batch_idx}: input_ids device: {b_input_ids.device}, labels device: {b_labels.device}")
                     model.zero_grad()
                     outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
                     loss = outputs.loss
@@ -256,6 +267,7 @@ def train_bert(train_loader, test_loader, output_dir):
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                     optimizer.step()
+                    logger.debug(f"Batch {batch_idx}: Loss = {loss.item():.4f}, GPU Memory: {torch.cuda.memory_allocated(0)/1024**3:.2f} GB")
 
                 avg_train_loss = total_train_loss / len(train_loader)
                 logger.info(f"BERT Epoch {epoch+1}: Train Loss = {avg_train_loss:.4f}")
@@ -289,15 +301,15 @@ def train_bert(train_loader, test_loader, output_dir):
                 mlflow.log_metric("val_accuracy", avg_val_accuracy, step=epoch)
 
             # Сохранение модели и метрик
-            os.makedirs(OUTPUT_DIR_BERT, exist_ok=True)
-            metrics_path = os.path.join(OUTPUT_DIR_BERT, 'metrics.json')
+            os.makedirs(output_dir, exist_ok=True)
+            metrics_path = os.path.join(output_dir, 'metrics.json')
             with open(metrics_path, 'w') as f:
                 json.dump(training_stats, f)
             mlflow.log_artifact(metrics_path)
             mlflow.pytorch.log_model(model, "bert_model")
-            logger.info(f"Saving BERT model to {OUTPUT_DIR_BERT}")
-            model.save_pretrained(OUTPUT_DIR_BERT)
-            logger.info(f"BERT training completed, metrics saved to {metrics_path}")
+            logger.info(f"Saving BERT model to {output_dir}")
+            model.save_pretrained(output_dir)
+            logger.info(f"BERT training completed, metrics saved to {metrics_path}, GPU Memory: {torch.cuda.memory_allocated(0)/1024**3:.2f} GB")
 
         return model, training_stats
     except Exception as e:

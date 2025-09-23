@@ -54,14 +54,14 @@ stages:
   train_bert:
     cmd: python mentorex2/mentorex2/modeling/train.py --model bert
     deps:
+      - mentorex2/mentorex2/modeling/train.py
+      - mentorex2/mentorex2/config.py
       - mentorex2/data/processed/imdb_train_input_ids.pt
       - mentorex2/data/processed/imdb_train_attention_masks.pt
       - mentorex2/data/processed/imdb_train_labels_bert.pt
       - mentorex2/data/processed/imdb_test_input_ids.pt
       - mentorex2/data/processed/imdb_test_attention_masks.pt
       - mentorex2/data/processed/imdb_test_labels_bert.pt
-      - mentorex2/mentorex2/modeling/train.py
-      - mentorex2/mentorex2/config.py
     outs:
       - mentorex2/models/bert/model.safetensors
     metrics:
