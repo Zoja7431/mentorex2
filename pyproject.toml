@@ -299,6 +299,7 @@ dependencies = [
     "typer>=0.17.4",
     "triton>=3.1.0",
     "git-lfs>=1.6",
+    "mlflow>=3.4.0",
 ]
 
 [build-system]

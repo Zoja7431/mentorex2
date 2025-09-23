@@ -109,3 +109,91 @@ stages:
       md5: 56d4d493620fba538dc65a08a7fb0294
       size: 261216
       isexec: true
+  process_cifar10_vit:
+    cmd: python mentorex2/mentorex2/dataset.py --cifar10_vit
+    deps:
+    - path: mentorex2/data/raw/cifar10
+      hash: md5
+      md5: 4a0ebba293c6625be2d1d15efd08914a.dir
+      size: 135659890
+      nfiles: 60000
+    - path: mentorex2/mentorex2/dataset.py
+      hash: md5
+      md5: 963161fd7a6f4a88c2c0a7bbd267d60f
+      size: 13778
+      isexec: true
+    outs:
+    - path: mentorex2/data/interim/vit_cifar10_test_images.npy
+      hash: md5
+      md5: bf0cbae27313744a07197d97c1124154
+      size: 122881280
+      isexec: true
+    - path: mentorex2/data/interim/vit_cifar10_test_labels.npy
+      hash: md5
+      md5: c9a06675dfe8ea47c7f69281dbfba325
+      size: 81280
+      isexec: true
+    - path: mentorex2/data/interim/vit_cifar10_train_images.npy
+      hash: md5
+      md5: 33544b0cc90a75956cf2e248a753ec49
+      size: 614406400
+      isexec: true
+    - path: mentorex2/data/interim/vit_cifar10_train_labels.npy
+      hash: md5
+      md5: 4114d1608a6e9dc34ad91cf8e8aca6c9
+      size: 406400
+      isexec: true
+    - path: mentorex2/data/processed/cifar10_test_images_vit.npy
+      hash: md5
+      md5: bd2b98340424c6deaada9a3c237281f7
+      size: 6021121280
+      isexec: true
+    - path: mentorex2/data/processed/cifar10_test_labels_vit.npy
+      hash: md5
+      md5: c9a06675dfe8ea47c7f69281dbfba325
+      size: 81280
+      isexec: true
+    - path: mentorex2/data/processed/cifar10_train_images_vit.npy
+      hash: md5
+      md5: 24a12a633a16497488ad0e39c4fa9dd2
+      size: 30105606400
+      isexec: true
+    - path: mentorex2/data/processed/cifar10_train_labels_vit.npy
+      hash: md5
+      md5: 4114d1608a6e9dc34ad91cf8e8aca6c9
+      size: 406400
+      isexec: true
+  process_cifar10_cnn:
+    cmd: python mentorex2/mentorex2/dataset.py --cifar10_cnn
+    deps:
+    - path: mentorex2/data/raw/cifar10
+      hash: md5
+      md5: 4a0ebba293c6625be2d1d15efd08914a.dir
+      size: 135659890
+      nfiles: 60000
+    - path: mentorex2/mentorex2/dataset.py
+      hash: md5
+      md5: 963161fd7a6f4a88c2c0a7bbd267d60f
+      size: 13778
+      isexec: true
+    outs:
+    - path: mentorex2/data/processed/cifar10_test_images_cnn.npy
+      hash: md5
+      md5: 579c187a1d7eca62a927e914cf772156
+      size: 122881280
+      isexec: true
+    - path: mentorex2/data/processed/cifar10_test_labels_cnn.npy
+      hash: md5
+      md5: c9a06675dfe8ea47c7f69281dbfba325
+      size: 81280
+      isexec: true
+    - path: mentorex2/data/processed/cifar10_train_images_cnn.npy
+      hash: md5
+      md5: 621f746df2840ea9d176af1965dbd89d
+      size: 614406400
+      isexec: true
+    - path: mentorex2/data/processed/cifar10_train_labels_cnn.npy
+      hash: md5
+      md5: 4114d1608a6e9dc34ad91cf8e8aca6c9
+      size: 406400
+      isexec: true

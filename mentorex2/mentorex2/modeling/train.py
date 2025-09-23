@@ -8,19 +8,37 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import GridSearchCV
 import xgboost as xgb
 import lightgbm as lgb
+from torch.utils.data import TensorDataset, DataLoader
 import catboost as cb
 import pickle
 import json
 import mlflow
+import logging
+import argparse
 from tqdm import tqdm
 from mentorex2.mentorex2.config import (
     NUM_CLASSES_CIFAR, EPOCHS_VIT, EPOCHS_CNN, LEARNING_RATE_VIT, LEARNING_RATE_CNN, WEIGHT_DECAY, LABEL_SMOOTHING,
     EPOCHS_BERT, LEARNING_RATE_BERT, EPOCHS_RNN, LEARNING_RATE_RNN, VOCAB_SIZE, EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS,
     DROPOUT, XGBOOST_PARAM_GRID, LIGHTGBM_PARAM_GRID, CATBOOST_PARAM_GRID, OUTPUT_DIR_VIT, OUTPUT_DIR_CNN, OUTPUT_DIR_BERT,
-    OUTPUT_DIR_RNN, OUTPUT_DIR_BOOSTING, BATCH_SIZE_RNN
+    OUTPUT_DIR_RNN, OUTPUT_DIR_BOOSTING, BATCH_SIZE_RNN, PROCESSED_DIR, LOGS_DIR
 )
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Настройка логирования
+os.makedirs(LOGS_DIR, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(os.path.join(LOGS_DIR, 'train.log'))
+    ]
+)
+logger = logging.getLogger(__name__)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger.info(f"Using device: {device}")
+
 
 class SimpleCNN(nn.Module):
     def __init__(self, num_classes):
@@ -185,60 +203,106 @@ def train_cnn(train_loader, test_loader, output_dir):
     return model, training_stats
 
 def train_bert(train_loader, test_loader, output_dir):
-    model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=2).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE_BERT, weight_decay=0.01)
+    logger.info("Starting BERT training...")
+    try:
+        # Загрузка данных
+        logger.info("Loading IMDB data for BERT...")
+        data_files = [
+            'imdb_train_input_ids.pt', 'imdb_train_attention_masks.pt', 'imdb_train_labels_bert.pt',
+            'imdb_test_input_ids.pt', 'imdb_test_attention_masks.pt', 'imdb_test_labels_bert.pt'
+        ]
+        for file in data_files:
+            file_path = os.path.join(PROCESSED_DIR, file)
+            if not os.path.exists(file_path):
+                logger.error(f"Data file {file_path} does not exist")
+                raise FileNotFoundError(f"Data file {file_path} does not exist")
+        
+        train_input_ids = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_input_ids.pt'))
+        train_attention_masks = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_attention_masks.pt'))
+        train_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_bert.pt'))
+        test_input_ids = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_input_ids.pt'))
+        test_attention_masks = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_attention_masks.pt'))
+        test_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_bert.pt'))
+        logger.info("IMDB data loaded successfully")
 
-    training_stats = []
-    with mlflow.start_run(run_name="bert_training"):
-        for epoch in range(EPOCHS_BERT):
-            model.train()
-            total_train_loss = 0
-            for batch in tqdm(train_loader, desc=f"BERT Epoch {epoch+1}"):
-                b_input_ids, b_input_mask, b_labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
-                model.zero_grad()
-                outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
-                loss = outputs.loss
-                total_train_loss += loss.item()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
+        # Проверка формата данных
+        logger.info(f"Train input_ids shape: {train_input_ids.shape}, dtype: {train_input_ids.dtype}")
+        logger.info(f"Train labels shape: {train_labels.shape}, dtype: {train_labels.dtype}")
 
-            avg_train_loss = total_train_loss / len(train_loader)
+        # Создание датасетов
+        train_dataset = TensorDataset(train_input_ids, train_attention_masks, train_labels)
+        test_dataset = TensorDataset(test_input_ids, test_attention_masks, test_labels)
+        train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
+        logger.info(f"Created DataLoaders: train batches={len(train_loader)}, test batches={len(test_loader)}")
 
-            model.eval()
-            total_eval_accuracy = 0
-            total_eval_loss = 0
-            for batch in test_loader:
-                b_input_ids, b_input_mask, b_labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
-                with torch.no_grad():
+        # Инициализация модели
+        logger.info("Initializing BERT model...")
+        model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=2).to(device)
+        optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE_BERT, weight_decay=0.01)
+
+        # Обучение
+        training_stats = []
+        with mlflow.start_run(run_name="bert_training"):
+            for epoch in range(EPOCHS_BERT):
+                model.train()
+                total_train_loss = 0
+                for batch in tqdm(train_loader, desc=f"BERT Epoch {epoch+1}"):
+                    b_input_ids, b_input_mask, b_labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                    model.zero_grad()
                     outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
-                loss = outputs.loss
-                logits = outputs.logits
-                total_eval_loss += loss.item()
-                total_eval_accuracy += np.sum(np.argmax(logits.detach().cpu().numpy(), axis=1) == b_labels.cpu().numpy()) / b_labels.size(0)
+                    loss = outputs.loss
+                    total_train_loss += loss.item()
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                    optimizer.step()
 
-            avg_val_loss = total_eval_loss / len(test_loader)
-            avg_val_accuracy = total_eval_accuracy / len(test_loader)
+                avg_train_loss = total_train_loss / len(train_loader)
+                logger.info(f"BERT Epoch {epoch+1}: Train Loss = {avg_train_loss:.4f}")
 
-            training_stats.append({
-                'epoch': epoch + 1,
-                'Training Loss': avg_train_loss,
-                'Valid. Loss': avg_val_loss,
-                'Valid. Accur.': avg_val_accuracy
-            })
+                model.eval()
+                total_eval_accuracy = 0
+                total_eval_loss = 0
+                for batch in test_loader:
+                    b_input_ids, b_input_mask, b_labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                    with torch.no_grad():
+                        outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
+                    loss = outputs.loss
+                    logits = outputs.logits
+                    total_eval_loss += loss.item()
+                    predictions = torch.argmax(logits, dim=1)
+                    total_eval_accuracy += torch.mean((predictions == b_labels).float()).item()
 
-            mlflow.log_metric("train_loss", avg_train_loss, step=epoch)
-            mlflow.log_metric("val_loss", avg_val_loss, step=epoch)
-            mlflow.log_metric("val_accuracy", avg_val_accuracy, step=epoch)
+                avg_val_loss = total_eval_loss / len(test_loader)
+                avg_val_accuracy = total_eval_accuracy / len(test_loader)
+                logger.info(f"BERT Epoch {epoch+1}: Val Loss = {avg_val_loss:.4f}, Val Accuracy = {avg_val_accuracy:.4f}")
 
-        os.makedirs(output_dir, exist_ok=True)
-        with open(os.path.join(output_dir, 'metrics.json'), 'w') as f:
-            json.dump(training_stats, f)
-        mlflow.log_artifact(os.path.join(output_dir, 'metrics.json'))
-        mlflow.pytorch.log_model(model, "bert_model")
+                training_stats.append({
+                    'epoch': epoch + 1,
+                    'Training Loss': avg_train_loss,
+                    'Valid. Loss': avg_val_loss,
+                    'Valid. Accur.': avg_val_accuracy
+                })
 
-        model.save_pretrained(output_dir)
-    return model, training_stats
+                mlflow.log_metric("train_loss", avg_train_loss, step=epoch)
+                mlflow.log_metric("val_loss", avg_val_loss, step=epoch)
+                mlflow.log_metric("val_accuracy", avg_val_accuracy, step=epoch)
+
+            # Сохранение модели и метрик
+            os.makedirs(OUTPUT_DIR_BERT, exist_ok=True)
+            metrics_path = os.path.join(OUTPUT_DIR_BERT, 'metrics.json')
+            with open(metrics_path, 'w') as f:
+                json.dump(training_stats, f)
+            mlflow.log_artifact(metrics_path)
+            mlflow.pytorch.log_model(model, "bert_model")
+            logger.info(f"Saving BERT model to {OUTPUT_DIR_BERT}")
+            model.save_pretrained(OUTPUT_DIR_BERT)
+            logger.info(f"BERT training completed, metrics saved to {metrics_path}")
+
+        return model, training_stats
+    except Exception as e:
+        logger.error(f"Error in train_bert: {e}")
+        raise
 
 def train_rnn(train_data, test_data, output_dir, rnn_type='LSTM'):
     train_loader = torch.utils.data.DataLoader(train_data, sampler=torch.utils.data.RandomSampler(train_data), batch_size=BATCH_SIZE_RNN)

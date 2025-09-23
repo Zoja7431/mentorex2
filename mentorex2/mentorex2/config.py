@@ -17,6 +17,7 @@ OUTPUT_DIR_CNN = os.path.join(MODEL_DIR, 'cnn')
 OUTPUT_DIR_BERT = os.path.join(MODEL_DIR, 'bert')
 OUTPUT_DIR_RNN = os.path.join(MODEL_DIR, 'rnn')
 OUTPUT_DIR_BOOSTING = os.path.join(MODEL_DIR, 'boosting')
+LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'mentorex2', 'logs')
 
 # CIFAR-10 parameters
 NUM_CLASSES_CIFAR = 10
