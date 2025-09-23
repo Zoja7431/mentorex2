@@ -421,3 +421,89 @@ def train_boosting(X_train, y_train, X_test, y_test, output_dir):
         mlflow.log_artifact(os.path.join(output_dir, 'boosting_metrics.pkl'))
 
     return results
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train models for mentorex2 project")
+    parser.add_argument("--model", type=str, required=True, choices=["vit", "cnn", "bert", "rnn", "boosting"],
+                        help="Model to train: vit, cnn, bert, rnn, or boosting")
+    args = parser.parse_args()
+
+    if args.model == "vit":
+        logger.info("Loading CIFAR-10 data for ViT...")
+        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'))
+        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'))
+        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'))
+        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'))
+
+        # Преобразование в тензоры (ViT ожидает NHWC -> NCHW)
+        train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
+        train_labels = torch.from_numpy(train_labels).long()
+        test_images = torch.from_numpy(test_images).float().permute(0, 3, 1, 2)
+        test_labels = torch.from_numpy(test_labels).long()
+
+        train_dataset = TensorDataset(train_images, train_labels)
+        test_dataset = TensorDataset(test_images, test_labels)
+
+        train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE_CIFAR, shuffle=True, num_workers=4, pin_memory=True)
+        test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE_CIFAR, shuffle=False, num_workers=4, pin_memory=True)
+
+        logger.info("Starting ViT training...")
+        train_vit(train_loader, test_loader, OUTPUT_DIR_VIT)
+
+    elif args.model == "cnn":
+        logger.info("Loading CIFAR-10 data for CNN...")
+        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'))
+        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'))
+        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'))
+        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'))
+
+        # Преобразование в тензоры (CNN ожидает NCHW)
+        train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
+        train_labels = torch.from_numpy(train_labels).long()
+        test_images = torch.from_numpy(test_images).float().permute(0, 3, 1, 2)
+        test_labels = torch.from_numpy(test_labels).long()
+
+        train_dataset = TensorDataset(train_images, train_labels)
+        test_dataset = TensorDataset(test_images, test_labels)
+
+        train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE_CIFAR, shuffle=True, num_workers=4, pin_memory=True)
+        test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE_CIFAR, shuffle=False, num_workers=4, pin_memory=True)
+
+        logger.info("Starting CNN training...")
+        train_cnn(train_loader, test_loader, OUTPUT_DIR_CNN)
+
+    elif args.model == "bert":
+        logger.info("Starting BERT training...")
+        # Функция train_bert игнорирует входные loaders, так что передаем None
+        train_bert(None, None, OUTPUT_DIR_BERT)
+
+    elif args.model == "rnn":
+        logger.info("Loading IMDB data for RNN...")
+        train_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_padded_rnn.pt'))
+        train_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_lengths_rnn.pt'))
+        train_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_rnn.pt'))
+        test_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_padded_rnn.pt'))
+        test_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_lengths_rnn.pt'))
+        test_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_rnn.pt'))
+
+        train_data = TensorDataset(train_padded, train_lengths, train_labels)
+        test_data = TensorDataset(test_padded, test_lengths, test_labels)
+
+        logger.info("Starting LSTM training...")
+        train_rnn(train_data, test_data, OUTPUT_DIR_RNN, rnn_type='LSTM')
+
+        logger.info("Starting GRU training...")
+        train_rnn(train_data, test_data, OUTPUT_DIR_RNN, rnn_type='GRU')
+
+    elif args.model == "boosting":
+        logger.info("Loading IMDB data for Boosting...")
+        with open(os.path.join(PROCESSED_DIR, 'imdb_train_tfidf.pkl'), 'rb') as f:
+            X_train = pickle.load(f)
+        with open(os.path.join(PROCESSED_DIR, 'imdb_test_tfidf.pkl'), 'rb') as f:
+            X_test = pickle.load(f)
+        y_train = np.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_boosting.npy'))
+        y_test = np.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_boosting.npy'))
+
+        logger.info("Starting Boosting training...")
+        train_boosting(X_train, y_train, X_test, y_test, OUTPUT_DIR_BOOSTING)
