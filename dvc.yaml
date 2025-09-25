@@ -2,175 +2,89 @@ stages:
   process_imdb:
     cmd: python mentorex2/mentorex2/dataset.py --imdb
     deps:
-      - mentorex2/data/raw/IMDB Dataset.csv
-      - mentorex2/mentorex2/dataset.py
+    - mentorex2/data/raw/IMDB Dataset.csv
+    - mentorex2/mentorex2/dataset.py
     outs:
-      - mentorex2/data/interim/imdb_interim.pkl
-      - mentorex2/data/processed/imdb_train_input_ids.pt
-      - mentorex2/data/processed/imdb_train_attention_masks.pt
-      - mentorex2/data/processed/imdb_train_labels_bert.pt
-      - mentorex2/data/processed/imdb_test_input_ids.pt
-      - mentorex2/data/processed/imdb_test_attention_masks.pt
-      - mentorex2/data/processed/imdb_test_labels_bert.pt
-      - mentorex2/data/processed/imdb_train_padded_rnn.pt
-      - mentorex2/data/processed/imdb_train_lengths_rnn.pt
-      - mentorex2/data/processed/imdb_train_labels_rnn.pt
-      - mentorex2/data/processed/imdb_test_padded_rnn.pt
-      - mentorex2/data/processed/imdb_test_lengths_rnn.pt
-      - mentorex2/data/processed/imdb_test_labels_rnn.pt
-      - mentorex2/data/processed/imdb_vocab.pkl
-      - mentorex2/data/processed/imdb_train_tfidf.pkl
-      - mentorex2/data/processed/imdb_test_tfidf.pkl
-      - mentorex2/data/processed/imdb_vectorizer.pkl
-      - mentorex2/data/processed/imdb_train_labels_boosting.npy
-      - mentorex2/data/processed/imdb_test_labels_boosting.npy
+    - mentorex2/data/interim/imdb_interim.pkl
+    - mentorex2/data/processed/imdb_train_input_ids.pt
+    - mentorex2/data/processed/imdb_train_attention_masks.pt
+    - mentorex2/data/processed/imdb_train_labels_bert.pt
+    - mentorex2/data/processed/imdb_test_input_ids.pt
+    - mentorex2/data/processed/imdb_test_attention_masks.pt
+    - mentorex2/data/processed/imdb_test_labels_bert.pt
+    - mentorex2/data/processed/imdb_train_padded_rnn.pt
+    - mentorex2/data/processed/imdb_train_lengths_rnn.pt
+    - mentorex2/data/processed/imdb_train_labels_rnn.pt
+    - mentorex2/data/processed/imdb_test_padded_rnn.pt
+    - mentorex2/data/processed/imdb_test_lengths_rnn.pt
+    - mentorex2/data/processed/imdb_test_labels_rnn.pt
+    - mentorex2/data/processed/imdb_vocab.pkl
+    - mentorex2/data/processed/imdb_train_tfidf.pkl
+    - mentorex2/data/processed/imdb_test_tfidf.pkl
+    - mentorex2/data/processed/imdb_vectorizer.pkl
+    - mentorex2/data/processed/imdb_train_labels_boosting.npy
+    - mentorex2/data/processed/imdb_test_labels_boosting.npy
 
   process_cifar10_vit:
     cmd: python mentorex2/mentorex2/dataset.py --cifar10_vit
     deps:
-      - mentorex2/data/raw/cifar10
-      - mentorex2/mentorex2/dataset.py
+    - mentorex2/data/raw/cifar10
+    - mentorex2/mentorex2/dataset.py
     outs:
-      - mentorex2/data/interim/vit_cifar10_train_images.npy
-      - mentorex2/data/interim/vit_cifar10_train_labels.npy
-      - mentorex2/data/interim/vit_cifar10_test_images.npy
-      - mentorex2/data/interim/vit_cifar10_test_labels.npy
-      - mentorex2/data/processed/cifar10_train_images_vit.npy
-      - mentorex2/data/processed/cifar10_train_labels_vit.npy
-      - mentorex2/data/processed/cifar10_test_images_vit.npy
-      - mentorex2/data/processed/cifar10_test_labels_vit.npy
+    - mentorex2/data/interim/vit_cifar10_train_images.npy
+    - mentorex2/data/interim/vit_cifar10_train_labels.npy
+    - mentorex2/data/interim/vit_cifar10_test_images.npy
+    - mentorex2/data/interim/vit_cifar10_test_labels.npy
+    - mentorex2/data/processed/cifar10_train_images_vit.npy
+    - mentorex2/data/processed/cifar10_train_labels_vit.npy
+    - mentorex2/data/processed/cifar10_test_images_vit.npy
+    - mentorex2/data/processed/cifar10_test_labels_vit.npy
 
   process_cifar10_cnn:
     cmd: python mentorex2/mentorex2/dataset.py --cifar10_cnn
     deps:
-      - mentorex2/data/raw/cifar10
-      - mentorex2/mentorex2/dataset.py
+    - mentorex2/data/raw/cifar10
+    - mentorex2/mentorex2/dataset.py
     outs:
-      - mentorex2/data/processed/cifar10_train_images_cnn.npy
-      - mentorex2/data/processed/cifar10_train_labels_cnn.npy
-      - mentorex2/data/processed/cifar10_test_images_cnn.npy
-      - mentorex2/data/processed/cifar10_test_labels_cnn.npy
-
-  train_bert:
-    cmd: python mentorex2/mentorex2/modeling/train.py --model bert
-    deps:
-      - mentorex2/mentorex2/modeling/train.py
-      - mentorex2/mentorex2/config.py
-      - mentorex2/data/processed/imdb_train_input_ids.pt
-      - mentorex2/data/processed/imdb_train_attention_masks.pt
-      - mentorex2/data/processed/imdb_train_labels_bert.pt
-      - mentorex2/data/processed/imdb_test_input_ids.pt
-      - mentorex2/data/processed/imdb_test_attention_masks.pt
-      - mentorex2/data/processed/imdb_test_labels_bert.pt
-    outs:
-      - mentorex2/models/bert/model.safetensors
-    metrics:
-      - mentorex2/models/bert/metrics.json:
-          cache: false
-
-  train_rnn:
-    cmd: python mentorex2/mentorex2/modeling/train.py --model rnn
-    deps:
-      - mentorex2/data/processed/imdb_train_padded_rnn.pt
-      - mentorex2/data/processed/imdb_train_lengths_rnn.pt
-      - mentorex2/data/processed/imdb_train_labels_rnn.pt
-      - mentorex2/data/processed/imdb_test_padded_rnn.pt
-      - mentorex2/data/processed/imdb_test_lengths_rnn.pt
-      - mentorex2/data/processed/imdb_test_labels_rnn.pt
-      - mentorex2/data/processed/imdb_vocab.pkl
-      - mentorex2/mentorex2/modeling/train.py
-      - mentorex2/mentorex2/config.py
-    outs:
-      - mentorex2/models/rnn/lstm_model.pth
-      - mentorex2/models/rnn/gru_model.pth
-    metrics:
-      - mentorex2/models/rnn/lstm_metrics.pkl:
-          cache: false
-      - mentorex2/models/rnn/gru_metrics.pkl:
-          cache: false
-
-  train_boosting:
-    cmd: python mentorex2/mentorex2/modeling/train.py --model boosting
-    deps:
-      - mentorex2/data/processed/imdb_train_tfidf.pkl
-      - mentorex2/data/processed/imdb_test_tfidf.pkl
-      - mentorex2/data/processed/imdb_train_labels_boosting.npy
-      - mentorex2/data/processed/imdb_test_labels_boosting.npy
-      - mentorex2/data/processed/imdb_vectorizer.pkl
-      - mentorex2/mentorex2/modeling/train.py
-      - mentorex2/mentorex2/config.py
-    outs:
-      - mentorex2/models/boosting/xgboost_model.json
-      - mentorex2/models/boosting/lightgbm_model.pkl
-      - mentorex2/models/boosting/catboost_model.cbm
-    metrics:
-      - mentorex2/models/boosting/boosting_metrics.pkl:
-          cache: false
-
-  train_vit:
-    cmd: python mentorex2/mentorex2/modeling/train.py --model vit
-    deps:
-      - mentorex2/data/processed/cifar10_train_images_vit.npy
-      - mentorex2/data/processed/cifar10_train_labels_vit.npy
-      - mentorex2/data/processed/cifar10_test_images_vit.npy
-      - mentorex2/data/processed/cifar10_test_labels_vit.npy
-      - mentorex2/mentorex2/modeling/train.py
-      - mentorex2/mentorex2/config.py
-    outs:
-      - mentorex2/models/vit/model.safetensors
-    metrics:
-      - mentorex2/models/vit/metrics.json:
-          cache: false
-
-  train_cnn:
-    cmd: python mentorex2/mentorex2/modeling/train.py --model cnn
-    deps:
-      - mentorex2/data/processed/cifar10_train_images_cnn.npy
-      - mentorex2/data/processed/cifar10_train_labels_cnn.npy
-      - mentorex2/data/processed/cifar10_test_images_cnn.npy
-      - mentorex2/data/processed/cifar10_test_labels_cnn.npy
-      - mentorex2/mentorex2/modeling/train.py
-      - mentorex2/mentorex2/config.py
-    outs:
-      - mentorex2/models/cnn/cnn_model.pth
-    metrics:
-      - mentorex2/models/cnn/metrics.json:
-          cache: false
+    - mentorex2/data/processed/cifar10_train_images_cnn.npy
+    - mentorex2/data/processed/cifar10_train_labels_cnn.npy
+    - mentorex2/data/processed/cifar10_test_images_cnn.npy
+    - mentorex2/data/processed/cifar10_test_labels_cnn.npy
 
   predict:
     cmd: python mentorex2/mentorex2/modeling/predict.py
     deps:
-      - mentorex2/models/bert/model.safetensors
-      - mentorex2/models/rnn/lstm_model.pth
-      - mentorex2/models/rnn/gru_model.pth
-      - mentorex2/models/boosting/xgboost_model.json
-      - mentorex2/models/boosting/lightgbm_model.pkl
-      - mentorex2/models/boosting/catboost_model.cbm
-      - mentorex2/models/vit/model.safetensors
-      - mentorex2/models/cnn/cnn_model.pth
-      - mentorex2/data/processed/imdb_vocab.pkl
-      - mentorex2/data/processed/imdb_vectorizer.pkl
-      - mentorex2/mentorex2/modeling/predict.py
-      - mentorex2/mentorex2/config.py
+    - mentorex2/models/bert/model.safetensors
+    - mentorex2/models/rnn/lstm_model.pth
+    - mentorex2/models/rnn/gru_model.pth
+    - mentorex2/models/boosting/xgboost_model.json
+    - mentorex2/models/boosting/lightgbm_model.pkl
+    - mentorex2/models/boosting/catboost_model.cbm
+    - mentorex2/models/vit/model.safetensors
+    - mentorex2/models/cnn/cnn_model.pth
+    - mentorex2/data/processed/imdb_vocab.pkl
+    - mentorex2/data/processed/imdb_vectorizer.pkl
+    - mentorex2/mentorex2/modeling/predict.py
+    - mentorex2/mentorex2/config.py
     outs:
-      - mentorex2/reports/predictions.json:
-          cache: false
+    - mentorex2/reports/predictions.json:
+        cache: false
 
   generate_plots:
     cmd: python mentorex2/mentorex2/plots.py
     deps:
-      - mentorex2/models/bert/metrics.json
-      - mentorex2/models/rnn/lstm_metrics.pkl
-      - mentorex2/models/rnn/gru_metrics.pkl
-      - mentorex2/models/boosting/boosting_metrics.pkl
-      - mentorex2/models/vit/metrics.json
-      - mentorex2/models/cnn/metrics.json
-      - mentorex2/mentorex2/plots.py
+    - mentorex2/models/bert/metrics.json
+    - mentorex2/models/rnn/lstm_metrics.pkl
+    - mentorex2/models/rnn/gru_metrics.pkl
+    - mentorex2/models/boosting/boosting_metrics.pkl
+    - mentorex2/models/vit/metrics.json
+    - mentorex2/models/cnn/metrics.json
+    - mentorex2/mentorex2/plots.py
     outs:
-      - mentorex2/reports/figures/xgboost_results.png
-      - mentorex2/reports/figures/gru_results.png
-      - mentorex2/reports/figures/catboost_results.png
-      - mentorex2/reports/figures/lstm_results.png
-      - mentorex2/reports/figures/lightgbm_results.png
-      - mentorex2/reports/figures/training_results.png
-      - mentorex2/reports/figures/model_comparison.png
+    - mentorex2/reports/figures/xgboost_results.png
+    - mentorex2/reports/figures/gru_results.png
+    - mentorex2/reports/figures/catboost_results.png
+    - mentorex2/reports/figures/lstm_results.png
+    - mentorex2/reports/figures/lightgbm_results.png
+    - mentorex2/reports/figures/training_results.png
+    - mentorex2/reports/figures/model_comparison.png

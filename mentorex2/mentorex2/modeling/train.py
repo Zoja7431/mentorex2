@@ -156,10 +156,20 @@ def train_vit(train_loader, test_loader, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         with open(os.path.join(output_dir, 'metrics.json'), 'w') as f:
             json.dump(training_stats, f)
+            
         mlflow.log_artifact(os.path.join(output_dir, 'metrics.json'))
-        mlflow.pytorch.log_model(model, "vit_model")
+        # Фикс: Добавь input_example (первый батч из train_loader)
+        with torch.no_grad():
+            sample_batch = next(iter(train_loader))
+            sample_input = sample_batch[0][:1]  # Один сэмпл для примера
+        mlflow.pytorch.log_model(
+            pytorch_model=model,
+            artifact_path="vit_model",
+            input_example=sample_input,
+            registered_model_name="mentorex2_vit"  # Регистрирует в Model Registry
+        )
 
-        model.save_pretrained(output_dir)
+        model.save_pretrained(output_dir)  # Для ViT
     return model, training_stats
 
 def train_cnn(train_loader, test_loader, output_dir):
@@ -217,9 +227,21 @@ def train_cnn(train_loader, test_loader, output_dir):
         with open(os.path.join(output_dir, 'metrics.json'), 'w') as f:
             json.dump(training_stats, f)
         mlflow.log_artifact(os.path.join(output_dir, 'metrics.json'))
+        # Фикс: Добавь input_example (первый батч из train_loader)
+        with torch.no_grad():
+            sample_batch = next(iter(train_loader))
+            sample_input = sample_batch[0][:1]  # Один сэмпл для примера
+        mlflow.pytorch.log_model(
+            pytorch_model=model,
+            artifact_path="cnn_model",
+            input_example=sample_input,
+            registered_model_name="mentorex2_cnn"  # Регистрирует в Model Registry
+        )
+
         mlflow.pytorch.log_model(model, "cnn_model")
 
         torch.save(model.state_dict(), os.path.join(output_dir, 'cnn_model.pth'))
+        mlflow.log_artifact(os.path.join(output_dir, 'cnn_model.pth'))
     return model, training_stats
 
 def train_bert(train_loader, test_loader, output_dir):
@@ -436,29 +458,35 @@ def train_boosting(X_train, y_train, X_test, y_test, output_dir):
             grid_search.fit(X_train, y_train)
             best_model = grid_search.best_estimator_
             y_pred = best_model.predict(X_test)
+            acc = accuracy_score(y_test, y_pred)
             results[name] = {
                 'model': best_model,
-                'accuracy': accuracy_score(y_test, y_pred),
+                'accuracy': acc,
                 'val_scores': grid_search.cv_results_['mean_test_score'],
                 'epochs': np.arange(1, len(grid_search.cv_results_['mean_test_score']) + 1)
             }
+            with mlflow.start_run(nested=True):  # Nested run для модели
+                mlflow.log_param(f"{name}_params", grid_search.best_params_)
+                mlflow.log_metric(f"{name}_accuracy", acc)
+                for i, score in enumerate(results[name]['val_scores']):
+                    mlflow.log_metric(f"{name}_val_score", score, step=i)
+                os.makedirs(output_dir, exist_ok=True)
+                model_path = os.path.join(output_dir, f'{name.lower()}_model')
+                if name == 'XGBoost':
+                    best_model.save_model(f"{model_path}.json")
+                    mlflow.xgboost.log_model(best_model, f"{name}_model")
+                    mlflow.log_artifact(f"{model_path}.json")
+                elif name == 'LightGBM':
+                    with open(os.path.join(output_dir, 'lightgbm_model.pkl'), 'wb') as f:
+                        pickle.dump(best_model, f)
+                    mlflow.lightgbm.log_model(best_model, f"{name}_model")
+                    mlflow.log_artifact(f"{model_path}.pkl")
+                else:
+                    best_model.save_model(f"{model_path}.cbm")
+                    mlflow.catboost.log_model(best_model, f"{name}_model")
+                    mlflow.log_artifact(f"{model_path}.cbm")
 
-            mlflow.log_metric(f"{name}_accuracy", results[name]['accuracy'])
-            for i, score in enumerate(results[name]['val_scores']):
-                mlflow.log_metric(f"{name}_val_score", score, step=i)
-
-            os.makedirs(output_dir, exist_ok=True)
-            if name == 'XGBoost':
-                best_model.save_model(os.path.join(output_dir, 'xgboost_model.json'))
-                mlflow.log_artifact(os.path.join(output_dir, 'xgboost_model.json'))
-            elif name == 'LightGBM':
-                with open(os.path.join(output_dir, 'lightgbm_model.pkl'), 'wb') as f:
-                    pickle.dump(best_model, f)
-                mlflow.log_artifact(os.path.join(output_dir, 'lightgbm_model.pkl'))
-            else:
-                best_model.save_model(os.path.join(output_dir, 'catboost_model.cbm'))
-                mlflow.log_artifact(os.path.join(output_dir, 'catboost_model.cbm'))
-
+        # Глобальные метрики/results
         with open(os.path.join(output_dir, 'boosting_metrics.pkl'), 'wb') as f:
             pickle.dump(results, f)
         mlflow.log_artifact(os.path.join(output_dir, 'boosting_metrics.pkl'))
@@ -474,10 +502,10 @@ if __name__ == "__main__":
 
     if args.model == "vit":
         logger.info("Loading CIFAR-10 data for ViT...")
-        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'))
-        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'))
-        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'))
-        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'))
+        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'),  weights_only=True)
+        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'),  weights_only=True)
+        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'),  weights_only=True)
+        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'),  weights_only=True)
 
         # Преобразование в тензоры (ViT ожидает NHWC -> NCHW)
         train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
@@ -496,10 +524,10 @@ if __name__ == "__main__":
 
     elif args.model == "cnn":
         logger.info("Loading CIFAR-10 data for CNN...")
-        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'))
-        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'))
-        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'))
-        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'))
+        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'),  weights_only=True)
+        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'),  weights_only=True)
+        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'),  weights_only=True)
+        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'),  weights_only=True)
 
         # Преобразование в тензоры (CNN ожидает NCHW)
         train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
@@ -523,12 +551,12 @@ if __name__ == "__main__":
 
     elif args.model == "rnn":
         logger.info("Loading IMDB data for RNN...")
-        train_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_padded_rnn.pt'))
-        train_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_lengths_rnn.pt'))
-        train_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_rnn.pt'))
-        test_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_padded_rnn.pt'))
-        test_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_lengths_rnn.pt'))
-        test_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_rnn.pt'))
+        train_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_padded_rnn.pt'),  weights_only=True)
+        train_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_lengths_rnn.pt'),  weights_only=True)
+        train_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_rnn.pt'),  weights_only=True)
+        test_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_padded_rnn.pt'),  weights_only=True)
+        test_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_lengths_rnn.pt'),  weights_only=True)
+        test_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_rnn.pt'),  weights_only=True)
 
         train_data = TensorDataset(train_padded, train_lengths, train_labels)
         test_data = TensorDataset(test_padded, test_lengths, test_labels)
