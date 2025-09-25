@@ -28,7 +28,7 @@ stages:
   process_cifar10_vit:
     cmd: python mentorex2/mentorex2/dataset.py --cifar10_vit
     deps:
-      - mentorex2/data/raw/cifar10.dvc
+      - mentorex2/data/raw/cifar10
       - mentorex2/mentorex2/dataset.py
     outs:
       - mentorex2/data/interim/vit_cifar10_train_images.npy
@@ -43,7 +43,7 @@ stages:
   process_cifar10_cnn:
     cmd: python mentorex2/mentorex2/dataset.py --cifar10_cnn
     deps:
-      - mentorex2/data/raw/cifar10.dvc
+      - mentorex2/data/raw/cifar10
       - mentorex2/mentorex2/dataset.py
     outs:
       - mentorex2/data/processed/cifar10_train_images_cnn.npy

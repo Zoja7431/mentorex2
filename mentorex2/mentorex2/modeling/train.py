@@ -23,6 +23,8 @@ from mentorex2.mentorex2.config import (
     OUTPUT_DIR_RNN, OUTPUT_DIR_BOOSTING, BATCH_SIZE_RNN, PROCESSED_DIR, LOGS_DIR
 )
 
+# Настройка MLflow Tracking URI
+mlflow.set_tracking_uri("http://0.0.0.0:5000")  # Указываем адрес твоего MLflow сервера
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Настройка логирования
 os.makedirs(LOGS_DIR, exist_ok=True)
@@ -106,8 +108,16 @@ def train_vit(train_loader, test_loader, output_dir):
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE_VIT, weight_decay=WEIGHT_DECAY)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
 
+    # Настройка эксперимента MLflow
+    experiment_name = "mentorex2_vit"
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        experiment_id = mlflow.create_experiment(experiment_name)
+    else:
+        experiment_id = experiment.experiment_id
+
     training_stats = []
-    with mlflow.start_run(run_name="vit_training"):
+    with mlflow.start_run(run_name="vit_training", experiment_id=experiment_id):
         for epoch in range(EPOCHS_VIT):
             model.train()
             running_loss = 0.0
@@ -158,8 +168,16 @@ def train_cnn(train_loader, test_loader, output_dir):
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE_CNN, weight_decay=WEIGHT_DECAY)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
+    # Настройка эксперимента MLflow
+    experiment_name = "mentorex2_cnn"
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        experiment_id = mlflow.create_experiment(experiment_name)
+    else:
+        experiment_id = experiment.experiment_id
+
     training_stats = []
-    with mlflow.start_run(run_name="cnn_training"):
+    with mlflow.start_run(run_name="cnn_training", experiment_id=experiment_id):
         for epoch in range(EPOCHS_CNN):
             model.train()
             running_loss = 0.0
@@ -212,9 +230,10 @@ def train_bert(train_loader, test_loader, output_dir):
         logger.info(f"Using device: {device}")
         if torch.cuda.is_available():
             logger.info(f"GPU: {torch.cuda.get_device_name(0)}, CUDA Version: {torch.version.cuda}")
+            torch.cuda.empty_cache()
         else:
             logger.warning("CUDA is not available, training on CPU")
-        # Загрузка данных
+        # Загрузка данных на CPU
         logger.info("Loading IMDB data for BERT...")
         data_files = [
             'imdb_train_input_ids.pt', 'imdb_train_attention_masks.pt', 'imdb_train_labels_bert.pt',
@@ -241,8 +260,8 @@ def train_bert(train_loader, test_loader, output_dir):
         # Создание датасетов
         train_dataset = TensorDataset(train_input_ids, train_attention_masks, train_labels)
         test_dataset = TensorDataset(test_input_ids, test_attention_masks, test_labels)
-        train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=2, pin_memory=True)
-        test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=2, pin_memory=True)
+        train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=0, pin_memory=False)
+        test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=0, pin_memory=False)
         logger.info(f"Created DataLoaders: train batches={len(train_loader)}, test batches={len(test_loader)}")
 
         # Инициализация модели
@@ -251,9 +270,17 @@ def train_bert(train_loader, test_loader, output_dir):
         logger.info(f"BERT model moved to {device}, Memory allocated: {torch.cuda.memory_allocated(0)/1024**3:.2f} GB")
         optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE_BERT, weight_decay=0.01)
 
+        # Настройка эксперимента MLflow
+        experiment_name = "mentorex2_bert"
+        experiment = mlflow.get_experiment_by_name(experiment_name)
+        if experiment is None:
+            experiment_id = mlflow.create_experiment(experiment_name)
+        else:
+            experiment_id = experiment.experiment_id
+
         # Обучение
         training_stats = []
-        with mlflow.start_run(run_name="bert_training"):
+        with mlflow.start_run(run_name="bert_training", experiment_id=experiment_id):
             for epoch in range(EPOCHS_BERT):
                 model.train()
                 total_train_loss = 0
@@ -324,8 +351,16 @@ def train_rnn(train_data, test_data, output_dir, rnn_type='LSTM'):
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE_RNN, weight_decay=0.01)
     criterion = nn.CrossEntropyLoss()
 
+    # Настройка эксперимента MLflow
+    experiment_name = "mentorex2_rnn"
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        experiment_id = mlflow.create_experiment(experiment_name)
+    else:
+        experiment_id = experiment.experiment_id
+
     training_stats = []
-    with mlflow.start_run(run_name=f"{rnn_type.lower()}_training"):
+    with mlflow.start_run(run_name=f"rnn_training", experiment_id=experiment_id):
         for epoch in range(EPOCHS_RNN):
             model.train()
             total_train_loss = 0
@@ -386,8 +421,16 @@ def train_boosting(X_train, y_train, X_test, y_test, output_dir):
         'CatBoost': (cb.CatBoostClassifier(verbose=0, train_dir=os.path.join(output_dir, 'catboost_info')), CATBOOST_PARAM_GRID)
     }
 
+    # Настройка эксперимента MLflow
+    experiment_name = "mentorex2_boosting"
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        experiment_id = mlflow.create_experiment(experiment_name)
+    else:
+        experiment_id = experiment.experiment_id
+    
     results = {}
-    with mlflow.start_run(run_name="boosting_training"):
+    with mlflow.start_run(run_name="mentorex2_boosting", experiment_id=experiment_id):
         for name, (model, param_grid) in models.items():
             grid_search = GridSearchCV(model, param_grid, cv=3, scoring='accuracy', n_jobs=-1, verbose=1)
             grid_search.fit(X_train, y_train)
