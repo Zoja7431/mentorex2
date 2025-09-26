@@ -20,7 +20,7 @@ from mentorex2.mentorex2.config import (
     NUM_CLASSES_CIFAR, EPOCHS_VIT, EPOCHS_CNN, LEARNING_RATE_VIT, LEARNING_RATE_CNN, WEIGHT_DECAY, LABEL_SMOOTHING,
     EPOCHS_BERT, LEARNING_RATE_BERT, EPOCHS_RNN, LEARNING_RATE_RNN, VOCAB_SIZE, EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS,
     DROPOUT, XGBOOST_PARAM_GRID, LIGHTGBM_PARAM_GRID, CATBOOST_PARAM_GRID, OUTPUT_DIR_VIT, OUTPUT_DIR_CNN, OUTPUT_DIR_BERT,
-    OUTPUT_DIR_RNN, OUTPUT_DIR_BOOSTING, BATCH_SIZE_RNN, PROCESSED_DIR, LOGS_DIR
+    OUTPUT_DIR_RNN, OUTPUT_DIR_BOOSTING, BATCH_SIZE_RNN, PROCESSED_DIR, LOGS_DIR, BATCH_SIZE_CIFAR
 )
 
 # Настройка MLflow Tracking URI
@@ -502,10 +502,10 @@ if __name__ == "__main__":
 
     if args.model == "vit":
         logger.info("Loading CIFAR-10 data for ViT...")
-        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'),  weights_only=True)
-        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'),  weights_only=True)
-        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'),  weights_only=True)
-        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'),  weights_only=True)
+        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'))
+        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'))
+        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'))
+        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'))
 
         # Преобразование в тензоры (ViT ожидает NHWC -> NCHW)
         train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
@@ -524,10 +524,10 @@ if __name__ == "__main__":
 
     elif args.model == "cnn":
         logger.info("Loading CIFAR-10 data for CNN...")
-        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'),  weights_only=True)
-        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'),  weights_only=True)
-        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'),  weights_only=True)
-        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'),  weights_only=True)
+        train_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'))
+        train_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'))
+        test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'))
+        test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'))
 
         # Преобразование в тензоры (CNN ожидает NCHW)
         train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
@@ -551,12 +551,12 @@ if __name__ == "__main__":
 
     elif args.model == "rnn":
         logger.info("Loading IMDB data for RNN...")
-        train_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_padded_rnn.pt'),  weights_only=True)
-        train_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_lengths_rnn.pt'),  weights_only=True)
-        train_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_rnn.pt'),  weights_only=True)
-        test_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_padded_rnn.pt'),  weights_only=True)
-        test_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_lengths_rnn.pt'),  weights_only=True)
-        test_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_rnn.pt'),  weights_only=True)
+        train_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_padded_rnn.pt'))
+        train_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_lengths_rnn.pt'))
+        train_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_train_labels_rnn.pt'))
+        test_padded = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_padded_rnn.pt'))
+        test_lengths = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_lengths_rnn.pt'))
+        test_labels = torch.load(os.path.join(PROCESSED_DIR, 'imdb_test_labels_rnn.pt'))
 
         train_data = TensorDataset(train_padded, train_lengths, train_labels)
         test_data = TensorDataset(test_padded, test_lengths, test_labels)
