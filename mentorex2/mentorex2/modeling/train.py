@@ -161,15 +161,17 @@ def train_vit(train_loader, test_loader, output_dir):
         # Фикс: Добавь input_example (первый батч из train_loader)
         with torch.no_grad():
             sample_batch = next(iter(train_loader))
-            sample_input = sample_batch[0][:1]  # Один сэмпл для примера
+            sample_input = sample_batch[0][:1]  # [1, 3, 224, 224]
+            sample_input_np = sample_input.cpu().numpy()  # Конверсия в numpy
         mlflow.pytorch.log_model(
             pytorch_model=model,
             artifact_path="vit_model",
-            input_example=sample_input,
-            registered_model_name="mentorex2_vit"  # Регистрирует в Model Registry
+            input_example=sample_input_np,  # numpy вместо tensor
+            registered_model_name="mentorex2_vit"
         )
 
         model.save_pretrained(output_dir)  # Для ViT
+        mlflow.log_artifact(os.path.join(output_dir, 'pytorch_model.bin'))  # Для ViT
     return model, training_stats
 
 def train_cnn(train_loader, test_loader, output_dir):
@@ -227,18 +229,19 @@ def train_cnn(train_loader, test_loader, output_dir):
         with open(os.path.join(output_dir, 'metrics.json'), 'w') as f:
             json.dump(training_stats, f)
         mlflow.log_artifact(os.path.join(output_dir, 'metrics.json'))
+
+
         # Фикс: Добавь input_example (первый батч из train_loader)
         with torch.no_grad():
             sample_batch = next(iter(train_loader))
-            sample_input = sample_batch[0][:1]  # Один сэмпл для примера
+            sample_input = sample_batch[0][:1]  # [1, 3, 32, 32]
+            sample_input_np = sample_input.cpu().numpy()  # Конверсия в numpy
         mlflow.pytorch.log_model(
             pytorch_model=model,
             artifact_path="cnn_model",
-            input_example=sample_input,
-            registered_model_name="mentorex2_cnn"  # Регистрирует в Model Registry
+            input_example=sample_input_np,  # numpy вместо tensor
+            registered_model_name="mentorex2_cnn"
         )
-
-        mlflow.pytorch.log_model(model, "cnn_model")
 
         torch.save(model.state_dict(), os.path.join(output_dir, 'cnn_model.pth'))
         mlflow.log_artifact(os.path.join(output_dir, 'cnn_model.pth'))
@@ -511,9 +514,9 @@ if __name__ == "__main__":
         logger.info(f"Test images shape: {test_images.shape}")
 
         # Преобразование в тензоры (ViT ожидает NHWC -> NCHW)
-        train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
+        train_images = torch.from_numpy(train_images).float()
         train_labels = torch.from_numpy(train_labels).long()
-        test_images = torch.from_numpy(test_images).float().permute(0, 3, 1, 2)
+        test_images = torch.from_numpy(test_images).float()
         test_labels = torch.from_numpy(test_labels).long()
 
         logger.info(f"Train images shape after permute: {train_images.shape}")
@@ -544,9 +547,9 @@ if __name__ == "__main__":
         logger.info(f"Test images shape: {test_images.shape}")
 
         # Преобразование в тензоры (CNN ожидает NCHW)
-        train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
+        train_images = torch.from_numpy(train_images).float()
         train_labels = torch.from_numpy(train_labels).long()
-        test_images = torch.from_numpy(test_images).float().permute(0, 3, 1, 2)
+        test_images = torch.from_numpy(test_images).float()
         test_labels = torch.from_numpy(test_labels).long()
 
         # Проверка формы после permute
