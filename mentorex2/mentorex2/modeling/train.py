@@ -507,11 +507,21 @@ if __name__ == "__main__":
         test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_vit.npy'))
         test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_vit.npy'))
 
+        logger.info(f"Train images shape: {train_images.shape}")
+        logger.info(f"Test images shape: {test_images.shape}")
+
         # Преобразование в тензоры (ViT ожидает NHWC -> NCHW)
         train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
         train_labels = torch.from_numpy(train_labels).long()
         test_images = torch.from_numpy(test_images).float().permute(0, 3, 1, 2)
         test_labels = torch.from_numpy(test_labels).long()
+
+        logger.info(f"Train images shape after permute: {train_images.shape}")
+        logger.info(f"Test images shape after permute: {test_images.shape}")
+
+        if train_images.shape[1] != 3:
+            logger.error(f"Unexpected number of channels in train_images: {train_images.shape[1]}, expected 3")
+            raise ValueError(f"Unexpected number of channels in train_images: {train_images.shape[1]}")
 
         train_dataset = TensorDataset(train_images, train_labels)
         test_dataset = TensorDataset(test_images, test_labels)
@@ -529,11 +539,24 @@ if __name__ == "__main__":
         test_images = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'))
         test_labels = np.load(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'))
 
+        # Логирование формы
+        logger.info(f"Train images shape: {train_images.shape}")
+        logger.info(f"Test images shape: {test_images.shape}")
+
         # Преобразование в тензоры (CNN ожидает NCHW)
         train_images = torch.from_numpy(train_images).float().permute(0, 3, 1, 2)
         train_labels = torch.from_numpy(train_labels).long()
         test_images = torch.from_numpy(test_images).float().permute(0, 3, 1, 2)
         test_labels = torch.from_numpy(test_labels).long()
+
+        # Проверка формы после permute
+        logger.info(f"Train images shape after permute: {train_images.shape}")
+        logger.info(f"Test images shape after permute: {test_images.shape}")
+
+        # Проверка: ожидаем [N, 3, 32, 32]
+        if train_images.shape[1] != 3:
+            logger.error(f"Unexpected number of channels in train_images: {train_images.shape[1]}, expected 3")
+            raise ValueError(f"Unexpected number of channels in train_images: {train_images.shape[1]}")
 
         train_dataset = TensorDataset(train_images, train_labels)
         test_dataset = TensorDataset(test_images, test_labels)
