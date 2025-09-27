@@ -431,10 +431,16 @@ def train_rnn(train_data, test_data, output_dir, rnn_type='LSTM'):
             mlflow.log_metric("val_accuracy", avg_val_accuracy, step=epoch)
 
         os.makedirs(output_dir, exist_ok=True)
-        with open(os.path.join(output_dir, f'{rnn_type.lower()}_metrics.pkl'), 'wb') as f:
-            pickle.dump(training_stats, f)
-        mlflow.log_artifact(os.path.join(output_dir, f'{rnn_type.lower()}_metrics.pkl'))
-        mlflow.pytorch.log_model(model, f"{rnn_type.lower()}_model")
+        with open(os.path.join(output_dir, f'{rnn_type.lower()}_metrics.json'), 'w') as f:  # json вместо pickle
+            json.dump(training_stats, f)
+        # В train_rnn, после for epoch ...
+        # Добавь input_example
+        with torch.no_grad():
+            sample_batch = next(iter(train_loader))
+            sample_input = sample_batch[0][:1]  # Inputs [1, max_length]
+            sample_input_np = sample_input.cpu().numpy()  # To numpy
+        mlflow.pytorch.log_model(model, f"{rnn_type.lower()}_model", input_example=sample_input_np)
+        mlflow.log_artifact(os.path.join(output_dir, f'{rnn_type.lower()}_metrics.json'))
 
         torch.save(model.state_dict(), os.path.join(output_dir, f'{rnn_type.lower()}_model.pth'))
     return model, training_stats
@@ -463,10 +469,10 @@ def train_boosting(X_train, y_train, X_test, y_test, output_dir):
             y_pred = best_model.predict(X_test)
             acc = accuracy_score(y_test, y_pred)
             results[name] = {
-                'model': best_model,
+                'model': 'best_model_placeholder',  # Не сохраняй модель в results (т.к. json, а модель не serializable)
                 'accuracy': acc,
-                'val_scores': grid_search.cv_results_['mean_test_score'],
-                'epochs': np.arange(1, len(grid_search.cv_results_['mean_test_score']) + 1)
+                'val_scores': grid_search.cv_results_['mean_test_score'].tolist(),  # tolist для json
+                'epochs': np.arange(1, len(grid_search.cv_results_['mean_test_score']) + 1).tolist()
             }
             with mlflow.start_run(nested=True):  # Nested run для модели
                 mlflow.log_param(f"{name}_params", grid_search.best_params_)
@@ -477,22 +483,26 @@ def train_boosting(X_train, y_train, X_test, y_test, output_dir):
                 model_path = os.path.join(output_dir, f'{name.lower()}_model')
                 if name == 'XGBoost':
                     best_model.save_model(f"{model_path}.json")
-                    mlflow.xgboost.log_model(best_model, f"{name}_model")
+                    # Добавь input_example для MLflow (пример из X_train)
+                    sample_input = X_train[:1].toarray()  # Sparse to dense numpy
+                    mlflow.xgboost.log_model(best_model, f"{name}_model", input_example=sample_input)
                     mlflow.log_artifact(f"{model_path}.json")
                 elif name == 'LightGBM':
-                    with open(os.path.join(output_dir, 'lightgbm_model.pkl'), 'wb') as f:
+                    with open(f"{model_path}.pkl", 'wb') as f:
                         pickle.dump(best_model, f)
-                    mlflow.lightgbm.log_model(best_model, f"{name}_model")
+                    sample_input = X_train[:1].toarray()
+                    mlflow.lightgbm.log_model(best_model, f"{name}_model", input_example=sample_input)
                     mlflow.log_artifact(f"{model_path}.pkl")
-                else:
+                else:  # CatBoost
                     best_model.save_model(f"{model_path}.cbm")
-                    mlflow.catboost.log_model(best_model, f"{name}_model")
+                    sample_input = X_train[:1].toarray()
+                    mlflow.catboost.log_model(best_model, f"{name}_model", input_example=sample_input)
                     mlflow.log_artifact(f"{model_path}.cbm")
 
-        # Глобальные метрики/results
-        with open(os.path.join(output_dir, 'boosting_metrics.pkl'), 'wb') as f:
-            pickle.dump(results, f)
-        mlflow.log_artifact(os.path.join(output_dir, 'boosting_metrics.pkl'))
+        # Глобальные метрики/results (json вместо pickle)
+        with open(os.path.join(output_dir, 'boosting_metrics.json'), 'w') as f:
+            json.dump(results, f)
+        mlflow.log_artifact(os.path.join(output_dir, 'boosting_metrics.json'))
 
     return results
 

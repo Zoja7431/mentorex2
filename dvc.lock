@@ -101,7 +101,7 @@ stages:
       isexec: true
     - path: mentorex2/data/processed/imdb_vectorizer.pkl
       hash: md5
-      md5: 8088db6efb53005334e7b3d3a3e1225e
+      md5: 57a5ed76846efa90b8330f887b3ed5c5
       size: 183485
       isexec: true
     - path: mentorex2/data/processed/imdb_vocab.json
@@ -196,4 +196,122 @@ stages:
       hash: md5
       md5: 4114d1608a6e9dc34ad91cf8e8aca6c9
       size: 406400
+      isexec: true
+  train_boosting:
+    cmd: python mentorex2/mentorex2/modeling/train.py --model boosting
+    deps:
+    - path: mentorex2/data/processed/imdb_test_labels_boosting.npy
+      hash: md5
+      md5: acb1c959ebc9d330330a3d3ccd5f8f8f
+      size: 80128
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_tfidf.pkl
+      hash: md5
+      md5: adf1ca2cf36c62a0fd9e8f9ebee7809f
+      size: 8047918
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_labels_boosting.npy
+      hash: md5
+      md5: 1a45fc0feb8bb634a488bff6c925388d
+      size: 320128
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_tfidf.pkl
+      hash: md5
+      md5: c522d3eeca67704b8f71087f04c8081b
+      size: 32379572
+      isexec: true
+    - path: mentorex2/data/processed/imdb_vectorizer.pkl
+      hash: md5
+      md5: e100de96329d93dfe2c8e5f0b9f15914
+      size: 183485
+      isexec: true
+    - path: mentorex2/mentorex2/config.py
+      hash: md5
+      md5: 3ac2e4f0c650448dde16a281fb8f56ec
+      size: 1685
+      isexec: true
+    - path: mentorex2/mentorex2/modeling/train.py
+      hash: md5
+      md5: 6126e4727228ef65183987f59a82aeb1
+      size: 30818
+      isexec: true
+    outs:
+    - path: mentorex2/models/boosting/boosting_metrics.json
+      hash: md5
+      md5: 972878dfe8f986f1b5fc3e7cd791f35e
+      size: 359
+      isexec: true
+    - path: mentorex2/models/boosting/catboost_model.cbm
+      hash: md5
+      md5: c77ac67528d4657b1d35374cc81518f2
+      size: 136656
+      isexec: true
+    - path: mentorex2/models/boosting/lightgbm_model.pkl
+      hash: md5
+      md5: 74dc795d354aa13d16dd2441be12ee66
+      size: 234759
+      isexec: true
+    - path: mentorex2/models/boosting/xgboost_model.json
+      hash: md5
+      md5: e667c339b13c358b86be44a3172c809b
+      size: 63473
+      isexec: true
+  train_bert:
+    cmd: python mentorex2/mentorex2/modeling/train.py --model bert
+    deps:
+    - path: mentorex2/data/processed/imdb_test_attention_masks.pt
+      hash: md5
+      md5: 7f04293a71b2711d29c6cf1a88cc8082
+      size: 40961334
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_input_ids.pt
+      hash: md5
+      md5: e2b4ee8fb030562cf84acb9a2dd1e533
+      size: 40961240
+      isexec: true
+    - path: mentorex2/data/processed/imdb_test_labels_bert.pt
+      hash: md5
+      md5: c224929ef46f1fe51a96779d0c85220f
+      size: 81250
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_attention_masks.pt
+      hash: md5
+      md5: 8677c62a95335ea1431a874fc15280f0
+      size: 163841339
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_input_ids.pt
+      hash: md5
+      md5: dd27e4ac6ae7d94876ed386e8469bbd6
+      size: 163841245
+      isexec: true
+    - path: mentorex2/data/processed/imdb_train_labels_bert.pt
+      hash: md5
+      md5: b4454f8fa5b65ba4f093947a5248095d
+      size: 321319
+      isexec: true
+    - path: mentorex2/mentorex2/config.py
+      hash: md5
+      md5: 3ac2e4f0c650448dde16a281fb8f56ec
+      size: 1685
+      isexec: true
+    - path: mentorex2/mentorex2/modeling/train.py
+      hash: md5
+      md5: 6126e4727228ef65183987f59a82aeb1
+      size: 30818
+      isexec: true
+    outs:
+    - path: mentorex2/models/bert/config.json
+      hash: md5
+      md5: a8614a36fb5b116e9604ddb20d8e5761
+      size: 681
+      isexec: true
+    - path: mentorex2/models/bert/metrics.json
+      hash: md5
+      md5: 8d182947a089ef5340ed876b63ce5b8a
+      size: 335
+      isexec: true
+    - path: mentorex2/models/bert/model.safetensors
+      hash: md5
+      md5: 152c6bfd9b02704853662592894a8443
+      size: 437958648
       isexec: true

@@ -69,7 +69,7 @@ stages:
       - mentorex2/models/bert/metrics.json:  # Исправлено: путь из train.py
           cache: false
 
-  train_rnn:
+    train_rnn:
     cmd: python mentorex2/mentorex2/modeling/train.py --model rnn
     deps:
       - mentorex2/data/processed/imdb_train_padded_rnn.pt
@@ -78,16 +78,16 @@ stages:
       - mentorex2/data/processed/imdb_test_padded_rnn.pt
       - mentorex2/data/processed/imdb_test_lengths_rnn.pt
       - mentorex2/data/processed/imdb_test_labels_rnn.pt
-      - mentorex2/data/processed/imdb_vocab.json  # Исправлено: .json
+      - mentorex2/data/processed/imdb_vocab.pkl
       - mentorex2/mentorex2/modeling/train.py
       - mentorex2/mentorex2/config.py
     outs:
       - mentorex2/models/rnn/lstm_model.pth
       - mentorex2/models/rnn/gru_model.pth
     metrics:
-      - mentorex2/models/rnn/lstm_metrics.pkl:  # Исправлено: путь из train.py
+      - mentorex2/models/rnn/lstm_metrics.json:  # .json
           cache: false
-      - mentorex2/models/rnn/gru_metrics.pkl:
+      - mentorex2/models/rnn/gru_metrics.json:  # .json
           cache: false
 
   train_boosting:
@@ -105,7 +105,7 @@ stages:
       - mentorex2/models/boosting/lightgbm_model.pkl
       - mentorex2/models/boosting/catboost_model.cbm
     metrics:
-      - mentorex2/models/boosting/boosting_metrics.pkl:  # Исправлено: путь из train.py
+      - mentorex2/models/boosting/boosting_metrics.json:  # Исправлено: путь из train.py
           cache: false
 
   train_vit:
@@ -163,10 +163,10 @@ stages:
   generate_plots:
     cmd: python mentorex2/mentorex2/plots.py
     deps:
-      - mentorex2/models/bert/metrics.json  # Исправлено
-      - mentorex2/models/rnn/lstm_metrics.pkl
-      - mentorex2/models/rnn/gru_metrics.pkl
-      - mentorex2/models/boosting/boosting_metrics.pkl
+      - mentorex2/models/bert/metrics.json
+      - mentorex2/models/rnn/lstm_metrics.json  # .json
+      - mentorex2/models/rnn/gru_metrics.json  # .json
+      - mentorex2/models/boosting/boosting_metrics.json  # .json
       - mentorex2/models/vit/metrics.json
       - mentorex2/models/cnn/metrics.json
       - mentorex2/mentorex2/plots.py
