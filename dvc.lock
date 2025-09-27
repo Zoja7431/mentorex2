@@ -10,14 +10,14 @@ stages:
       isexec: true
     - path: mentorex2/mentorex2/dataset.py
       hash: md5
-      md5: 963161fd7a6f4a88c2c0a7bbd267d60f
-      size: 13778
+      md5: 9b509b9f2e767344fabd8f7d058c9252
+      size: 16990
       isexec: true
     outs:
-    - path: mentorex2/data/interim/imdb_interim.pkl
+    - path: mentorex2/data/interim/imdb_interim.json
       hash: md5
-      md5: 8f21bd14ac7699e77b71c8f441bf0542
-      size: 53760188
+      md5: 61d3f6f6c1f3d887587cbfa40424598e
+      size: 59645006
       isexec: true
     - path: mentorex2/data/processed/imdb_test_attention_masks.pt
       hash: md5
@@ -101,13 +101,13 @@ stages:
       isexec: true
     - path: mentorex2/data/processed/imdb_vectorizer.pkl
       hash: md5
-      md5: afad73f5b5e84ccbaf2f870a0cc73777
+      md5: 8088db6efb53005334e7b3d3a3e1225e
       size: 183485
       isexec: true
-    - path: mentorex2/data/processed/imdb_vocab.pkl
+    - path: mentorex2/data/processed/imdb_vocab.json
       hash: md5
-      md5: 56d4d493620fba538dc65a08a7fb0294
-      size: 261216
+      md5: c89bbdf50997d8cfe8eb33123f30ffe7
+      size: 350279
       isexec: true
   process_cifar10_vit:
     cmd: python mentorex2/mentorex2/dataset.py --cifar10_vit
@@ -119,8 +119,8 @@ stages:
       nfiles: 0
     - path: mentorex2/mentorex2/dataset.py
       hash: md5
-      md5: 963161fd7a6f4a88c2c0a7bbd267d60f
-      size: 13778
+      md5: 9b509b9f2e767344fabd8f7d058c9252
+      size: 16990
       isexec: true
     outs:
     - path: mentorex2/data/interim/vit_cifar10_test_images.npy
@@ -173,13 +173,13 @@ stages:
       nfiles: 0
     - path: mentorex2/mentorex2/dataset.py
       hash: md5
-      md5: 963161fd7a6f4a88c2c0a7bbd267d60f
-      size: 13778
+      md5: 9b509b9f2e767344fabd8f7d058c9252
+      size: 16990
       isexec: true
     outs:
     - path: mentorex2/data/processed/cifar10_test_images_cnn.npy
       hash: md5
-      md5: 579c187a1d7eca62a927e914cf772156
+      md5: 2093944bec8535e964c7c25c04450a92
       size: 122881280
       isexec: true
     - path: mentorex2/data/processed/cifar10_test_labels_cnn.npy
@@ -189,7 +189,7 @@ stages:
       isexec: true
     - path: mentorex2/data/processed/cifar10_train_images_cnn.npy
       hash: md5
-      md5: 621f746df2840ea9d176af1965dbd89d
+      md5: cb36f25f1b2abaf7e78a124dfdae70e3
       size: 614406400
       isexec: true
     - path: mentorex2/data/processed/cifar10_train_labels_cnn.npy

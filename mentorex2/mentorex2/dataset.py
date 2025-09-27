@@ -17,9 +17,10 @@ import re
 from collections import Counter
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
-import json  # Замени pickle на json для safety
+import json
+import pickle  # Добавлен импорт pickle
 import nltk
-import logging  # Добавь logging для отладки
+import logging
 
 # Настройка logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -41,11 +42,10 @@ PROCESSED_DIR = os.path.join(DATA_DIR, 'processed')
 for directory in [INTERIM_DIR, PROCESSED_DIR]:
     os.makedirs(directory, exist_ok=True)
 
-
-def process_cifar10_vit(batch_size=1000):  # Добавь arg для batch_size
+def process_cifar10_vit(batch_size=1000):
     """
     Preprocess CIFAR-10 dataset for ViT with batch processing.
-    Saves interim and processed data.
+    Saves interim and processed data in NCHW format.
     """
     cifar10_dir = os.path.join(RAW_DIR, 'cifar10')
     train_dir = os.path.join(cifar10_dir, 'train')
@@ -80,7 +80,7 @@ def process_cifar10_vit(batch_size=1000):  # Добавь arg для batch_size
     train_loader_vit = DataLoader(train_dataset_vit, batch_size=batch_size, shuffle=False)
     test_loader_vit = DataLoader(test_dataset_vit, batch_size=batch_size, shuffle=False)
 
-    # Сохранение interim данных
+    # Сохранение interim данных (NCHW)
     try:
         with open(os.path.join(INTERIM_DIR, 'vit_cifar10_train_images.npy'), 'wb') as f_images, \
              open(os.path.join(INTERIM_DIR, 'vit_cifar10_train_labels.npy'), 'wb') as f_labels:
@@ -99,7 +99,7 @@ def process_cifar10_vit(batch_size=1000):  # Добавь arg для batch_size
         logger.error(f"Error saving interim data for ViT: {e}")
         raise
 
-    # Сохранение processed данных для ViT
+    # Сохранение processed данных для ViT (NCHW)
     try:
         with open(os.path.join(PROCESSED_DIR, 'cifar10_train_images_vit.npy'), 'wb') as f_images, \
              open(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_vit.npy'), 'wb') as f_labels:
@@ -118,11 +118,10 @@ def process_cifar10_vit(batch_size=1000):  # Добавь arg для batch_size
         logger.error(f"Error saving processed data for ViT: {e}")
         raise
 
-# Аналогично для process_cifar10_cnn — добавь try/except, logging shapes, arg batch_size
 def process_cifar10_cnn(batch_size=1000):
     """
     Preprocess CIFAR-10 dataset for CNN with batch processing.
-    Saves processed data.
+    Saves processed data in NHWC format.
     """
     cifar10_dir = os.path.join(RAW_DIR, 'cifar10')
     train_dir = os.path.join(cifar10_dir, 'train')
@@ -149,19 +148,21 @@ def process_cifar10_cnn(batch_size=1000):
     train_loader_cnn = DataLoader(train_dataset_cnn, batch_size=batch_size, shuffle=False)
     test_loader_cnn = DataLoader(test_dataset_cnn, batch_size=batch_size, shuffle=False)
 
-    # Сохранение processed данных для CNN
+    # Сохранение processed данных для CNN (NHWC)
     try:
         with open(os.path.join(PROCESSED_DIR, 'cifar10_train_images_cnn.npy'), 'wb') as f_images, \
              open(os.path.join(PROCESSED_DIR, 'cifar10_train_labels_cnn.npy'), 'wb') as f_labels:
             for batch_images, batch_labels in train_loader_cnn:
-                logger.info(f"Processed train batch shape for CNN: images {batch_images.shape}, labels {batch_labels.shape}")
-                np.save(f_images, batch_images.numpy(), allow_pickle=False)
+                batch_images_nhwc = batch_images.permute(0, 2, 3, 1)
+                logger.info(f"Processed train batch shape for CNN: images {batch_images_nhwc.shape}, labels {batch_labels.shape}")
+                np.save(f_images, batch_images_nhwc.numpy(), allow_pickle=False)
                 np.save(f_labels, batch_labels.numpy(), allow_pickle=False)
         with open(os.path.join(PROCESSED_DIR, 'cifar10_test_images_cnn.npy'), 'wb') as f_images, \
              open(os.path.join(PROCESSED_DIR, 'cifar10_test_labels_cnn.npy'), 'wb') as f_labels:
             for batch_images, batch_labels in test_loader_cnn:
-                logger.info(f"Processed test batch shape for CNN: images {batch_images.shape}, labels {batch_labels.shape}")
-                np.save(f_images, batch_images.numpy(), allow_pickle=False)
+                batch_images_nhwc = batch_images.permute(0, 2, 3, 1)
+                logger.info(f"Processed test batch shape for CNN: images {batch_images_nhwc.shape}, labels {batch_labels.shape}")
+                np.save(f_images, batch_images_nhwc.numpy(), allow_pickle=False)
                 np.save(f_labels, batch_labels.numpy(), allow_pickle=False)
         logger.info(f"CIFAR-10 processed data for CNN saved in {PROCESSED_DIR}")
     except Exception as e:
@@ -204,7 +205,7 @@ def process_imdb():
         stratify=df['sentiment']
     )
 
-    # Сохранение interim данных (замени pickle на json для safety)
+    # Сохранение interim данных
     interim_data = {
         'train_texts': train_texts,
         'train_labels': train_labels,
@@ -213,7 +214,7 @@ def process_imdb():
     }
     try:
         with open(os.path.join(INTERIM_DIR, 'imdb_interim.json'), 'w') as f:
-            json.dump(interim_data, f)  # json вместо pickle — safer, no execution risk
+            json.dump(interim_data, f)
         logger.info(f"IMDB interim data saved in {INTERIM_DIR}")
     except Exception as e:
         logger.error(f"Error saving interim data: {e}")
@@ -290,7 +291,7 @@ def process_imdb():
         torch.save(test_padded, os.path.join(PROCESSED_DIR, 'imdb_test_padded_rnn.pt'))
         torch.save(torch.tensor(test_lengths), os.path.join(PROCESSED_DIR, 'imdb_test_lengths_rnn.pt'))
         torch.save(torch.tensor(test_labels), os.path.join(PROCESSED_DIR, 'imdb_test_labels_rnn.pt'))
-        with open(os.path.join(PROCESSED_DIR, 'imdb_vocab.json'), 'w') as f:  # json вместо pickle
+        with open(os.path.join(PROCESSED_DIR, 'imdb_vocab.json'), 'w') as f:
             json.dump(vocab, f)
         logger.info(f"IMDB processed data (RNN) saved in {PROCESSED_DIR}")
     except Exception as e:
