@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 [build-system]
 requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
@@ -44,54 +43,3 @@ exclude = '''
 profile = "black"
 known_first_party = ["mentorex2"]
 force_sort_within_sections = true
-
-
-=======
-[build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
-
-[project]
-name = "mentorex2"
-version = "0.0.1"
-description = "The first cookiecutter for my mentor's ex"
-authors = [
-  { name = "Zoja" },
-]
-
-readme = "README.md"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    
-]
-dependencies = [
-    "awscli",
-    "black",
-    "flake8",
-    "isort",
-    "loguru",
-    "mkdocs",
-    "pip",
-    "python-dotenv",
-    "tqdm",
-    "typer",
-]
-requires-python = "~=3.11.0"
-
-[tool.black]
-line-length = 99
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.venv
-)/
-'''
-
-[tool.isort]
-profile = "black"
-known_first_party = ["mentorex2"]
-force_sort_within_sections = true
-
-
->>>>>>> bfff80e (Adding files)
