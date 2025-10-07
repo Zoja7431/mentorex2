@@ -9,10 +9,6 @@ dvc --version
 git pull 
 dvc pull --force
 
-# если ошибка с dvc (не находит)
-# убедись что окружение активировано
-dvc sync
-
 # если ошибки
 Синхронизировать зависимости из requirements.txt (теперь после добавления любой зависимости через uv делаем uv pip freeze > requirements.txt)
 если ошибка с git-lfs при попытке git push, то 
@@ -35,4 +31,5 @@ git add dvc.lock dvc.yaml .dvc # коммить метаданные.
 git commit -m "Trained BERT, added metrics".
 git push
 dvc push
+
 
