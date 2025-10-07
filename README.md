@@ -9,12 +9,6 @@ dvc --version
 git pull 
 dvc pull --force
 
-# если ошибки
-Синхронизировать зависимости из requirements.txt (теперь после добавления любой зависимости через uv делаем uv pip freeze > requirements.txt)
-если ошибка с git-lfs при попытке git push, то 
-sudo apt update
-sudo apt install git-lfs
-
 # запус mlflow сервера
 mkdir -p ~/mentorex2/mlruns
 mlflow server --backend-store-uri sqlite:////home/mentorex/mentorex2/mlruns/mlflow.db --default-artifact-root /home/mentorex/mentorex2/mlruns --host 0.0.0.0 --port 5000 &
@@ -31,5 +25,6 @@ git add dvc.lock dvc.yaml .dvc # коммить метаданные.
 git commit -m "Trained BERT, added metrics".
 git push
 dvc push
+
 
 
