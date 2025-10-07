@@ -17,6 +17,7 @@ mlflow server --backend-store-uri sqlite:////home/mentorex/mentorex2/mlruns/mlfl
     rm -rf /mnt/d/mentorex2/.venv
     python3 -m venv /mnt/d/mentorex2/.venv
     source /mnt/d/mentorex2/.venv/bin/activate
+    uv sync
     
 # Commit (Git + DVC): После каждого успешного dvc repro или изменения (новая модель/данные). Шаги:
 
@@ -25,6 +26,7 @@ git add dvc.lock dvc.yaml .dvc # коммить метаданные.
 git commit -m "Trained BERT, added metrics".
 git push
 dvc push
+
 
 
 
