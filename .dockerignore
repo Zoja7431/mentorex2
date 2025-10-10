@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+*.pyc
+data/raw/*
+data/interim/*
+data/processed/*
+models/*
+reports/*
+logs/*
+dvc.lock
+mlruns/*
