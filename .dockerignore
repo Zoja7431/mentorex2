@@ -1,12 +1,57 @@
+# Git
 .git
+.gitignore
+
+# Python
 .venv
 __pycache__
 *.pyc
-data/raw/*
-data/interim/*
-data/processed/*
-models/*
-reports/*
-logs/*
-dvc.lock
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data and models
+mentorex2/data/raw/*
+mentorex2/data/interim/*
+mentorex2/data/processed/*
+mentorex2/reports/*
+mentorex2/logs/*
 mlruns/*
+
+# DVC
+dvc.lock
+.dvc/
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
